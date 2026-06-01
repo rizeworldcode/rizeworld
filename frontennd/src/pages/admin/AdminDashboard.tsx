@@ -1,93 +1,424 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Users, Search, Plus, Upload, Trash2, Edit2, LogOut, CheckCircle2, Shield, Eye, FileBox, AlertCircle, Download } from "lucide-react";
-import { PasswordRequirements, checkPasswordValidity } from "./AdminLogin";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { 
+  Users, Search, Plus, Trash2, Edit2, LogOut, Shield, Eye, 
+  AlertCircle, LayoutDashboard, GraduationCap, MessagesSquare, X, ArrowLeft,
+  Award, Bell, UserCircle, Mail, IndianRupee, CheckCircle2, Activity, Phone
+} from "lucide-react";
 
-// Types
-type Student = {
-  id: string;
-  name: string;
-  password?: string;
-  feesStatus: "Clear" | "Pending" | "Partial";
-  certificates: Certificate[];
-};
-
-type Certificate = {
-  id: string;
-  url: string;
-  date: string;
-  name: string;
-};
-
-type StudentDataSubmission = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  subject: string;
-  message: string;
-  date: string;
-};
-
+import { Student, Inquiry, Teacher } from "./types";
+import { StudentModal } from "./modals/StudentModal";
+import { StudentDetailsModal } from "./modals/StudentDetailsModal";
+import { TeacherModal } from "./modals/TeacherModal";
+import { ReferrerModal } from "./modals/ReferrerModal";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [students, setStudents] = useState<Student[]>([]);
+  const { tab, subview } = useParams();
+  
+  const activeTab = useMemo(() => tab || "dashboard", [tab]);
+  const expandedStat = useMemo(() => subview || null, [subview]);
+
   const [search, setSearch] = useState("");
-  const [dataSearch, setDataSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"students" | "certificates">("students");
-  const [studentDataList, setStudentDataList] = useState<StudentDataSubmission[]>([
-    {
-      id: "SD-1001",
-      name: "Anjali Verma",
-      email: "anjali.v@example.com",
-      phone: "9876543210",
-      subject: "Master Course Program",
-      message: "I am interested in joining the upcoming batch. Please share details.",
-      date: "2026-05-29",
-    },
-    {
-      id: "SD-1002",
-      name: "Rohan Gupta",
-      email: "rohan.g@example.com",
-      phone: "8765432109",
-      subject: "SEO",
-      message: "Do you offer weekend classes for SEO?",
-      date: "2026-05-28",
-    }
-  ]);
+  const [statusFilter, setStatusFilter] = useState<"All" | "Clear" | "Pending">("All");
+
+  const [students, setStudents] = useState<Student[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     unissuedCertificates: 0,
-    certificatesIssued: 0
+    certificatesIssued: 0,
+    totalEarnings: 0,
+    totalClearFees: 0,
   });
+  const [expandedStats, setExpandedStats] = useState({
+    totalEntries: 0,
+    growth: "0",
+    recentActivity: 0
+  });
+  const [allStudentsData, setAllStudentsData] = useState<Student[]>([]);
+  const [issuedCertificatesData, setIssuedCertificatesData] = useState<any[]>([]);
+  const [unissuedCertificatesData, setUnissuedCertificatesData] = useState<any[]>([]);
+  const [clearFeeStudentsData, setClearFeeStudentsData] = useState<any[]>([]);
+  const [earningsDetailsData, setEarningsDetailsData] = useState<any[]>([]);
+  const [referredStudentsData, setReferredStudentsData] = useState<any[]>([]);
+  const [graphData, setGraphData] = useState<any[]>([]);
+  const [topCourses, setTopCourses] = useState<any[]>([]);
+
+  const [isSetAmountModalOpen, setIsSetAmountModalOpen] = useState(false);
+  const [globalReferralAmount, setGlobalReferralAmount] = useState<number | string>("");
+
+  // Mock Data for new pages
+  const [inquiries] = useState<Inquiry[]>([
+    { id: "INQ-001", name: "Rohan Gupta", phone: "9876543210", course: "AI Tools + DM Basics", date: "2026-05-29", status: "New" },
+    { id: "INQ-002", name: "Anjali Verma", phone: "8765432109", course: "Video Editing", date: "2026-05-28", status: "Contacted" },
+  ]);
+
+
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+
+
+  const [referrers, setReferrers] = useState<any[]>([]);
+
+  const handleClearReferrerAmount = async (ref: any) => {
+     if (window.confirm(`Are you sure you want to clear all pending dues (₹${ref.pendingAmount.replace('₹', '')}) for ${ref.name}?`)) {
+        try {
+           const pendingValue = parseFloat(ref.pendingAmount.replace(/[₹,]/g, '')) || 0;
+           const res = await fetch("http://localhost:3001/updateReferrerPayment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                 id: ref.id, 
+                 payAmount: pendingValue
+              })
+           });
+           const data = await res.json();
+           if (data.success) {
+              alert("Referrer dues cleared successfully");
+              fetchReferrers();
+           }
+        } catch (error) {
+           console.error("Error clearing referrer dues:", error);
+        }
+     }
+  };
+
+  const [isReferrerModalOpen, setIsReferrerModalOpen] = useState(false);
+  const [editingReferrer, setEditingReferrer] = useState<any>(null);
+
+  const handleSaveReferrer = async (updatedReferrer: any) => {
+     try {
+        const res = await fetch("http://localhost:3001/updateReferrerPayment", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ 
+              id: updatedReferrer.id, 
+              payAmount: updatedReferrer.payAmount 
+           })
+        });
+        const data = await res.json();
+        if (data.success) {
+           alert(data.message);
+           fetchReferrers(); // Refresh the list
+           setIsReferrerModalOpen(false);
+           setEditingReferrer(null);
+        } else {
+           alert(data.message || "Failed to process payment");
+        }
+     } catch (error) {
+        console.error("Error processing referrer payment:", error);
+        alert("An error occurred while processing payment");
+     }
+  };
 
   // Modals state
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+
+  const fetchTeachers = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/allTeachers");
+      const data = await res.json();
+      if (data.success) {
+        const mapped: Teacher[] = data.data.map((item: any) => ({
+          id: item.techer_ID,
+          name: item.techer_name,
+          subject: item.course_name,
+          email: item.email,
+          phone: item.phone,
+          address: item.address
+        }));
+        setTeachers(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch teachers:", error);
+    }
+  };
+
+  const handleSaveTeacher = async (teacher: Teacher) => {
+    try {
+      const res = await fetch("http://localhost:3001/add_teacher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          techer_name: teacher.name,
+          techer_ID: teacher.id,
+          course_name: teacher.subject,
+          phone: teacher.phone,
+          email: teacher.email,
+          address: teacher.address
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchTeachers();
+        setIsTeacherModalOpen(false);
+      } else {
+        alert(data.message || "Failed to save teacher");
+      }
+    } catch (error) {
+      console.error("Error saving teacher:", error);
+      alert("An error occurred while saving teacher");
+    }
+  };
+
+  const handleDeleteTeacher = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this teacher?")) {
+      setTeachers(teachers.filter(t => t.id !== id));
+    }
+  };
+
+  const fetchAllStudents = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/allStudents", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        const mapped: Student[] = data.data.map((item: any) => ({
+          id: item.student_ID,
+          name: item.student_name,
+          feesStatus: item.status,
+          course: item.selected_course_name || "N/A",
+          duration: item.course_duration || "N/A",
+          totalFees: Number(item.total_fee) || 0,
+          paidFees: Number(item.total_paid_fee) || 0,
+          pendingFees: Number(item.pending_fee) || 0,
+          email: item.email,
+          phone: item.phone,
+          address: item.address,
+          startDate: item.course_start_date ? new Date(item.course_start_date).toISOString().split('T')[0] : "",
+          endDate: item.course_end_date ? new Date(item.course_end_date).toISOString().split('T')[0] : "",
+          feesInstallment: item.fee_installment,
+          fee: item.fee,
+          certificates: item.certificate_photo ? [{
+            id: `cert-${item.student_ID}`,
+            name: "Certificate",
+            url: `http://localhost:3001/${item.certificate_photo}`,
+            date: item.created_at ? new Date(item.created_at).toISOString().split("T")[0] : ""
+          }] : []
+        }));
+        setAllStudentsData(mapped);
+        setExpandedStats(data.stats);
+      }
+    } catch (error) {
+      console.error("Failed to fetch all students:", error);
+    }
+  };
+
+  const fetchIssuedCertificates = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/certificateissuedStudentsData", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        const mapped: Student[] = data.data.map((item: any) => ({
+          id: item.student_ID,
+          name: item.student_name,
+          feesStatus: "Clear", // Issued usually means clear, or we can use item.status if backend provides it
+          course: item.selected_course_name || "N/A",
+          duration: item.course_duration || "N/A",
+          totalFees: Number(item.total_fee) || 0,
+          paidFees: Number(item.total_paid_fee) || 0,
+          pendingFees: Number(item.pending_fee) || 0,
+          email: item.email,
+          phone: item.phone,
+          address: item.address,
+          startDate: item.course_start_date ? new Date(item.course_start_date).toISOString().split('T')[0] : "",
+          endDate: item.course_end_date ? new Date(item.course_end_date).toISOString().split('T')[0] : "",
+          feesInstallment: item.fee_installment,
+          fee: item.fee,
+          certificates: [{
+            id: `cert-${item.student_ID}`,
+            name: "Certificate",
+            url: `http://localhost:3001/${item.certificate_photo}`,
+            date: item.updated_at ? new Date(item.updated_at).toISOString().split("T")[0] : ""
+          }]
+        }));
+        setIssuedCertificatesData(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch issued certificates:", error);
+    }
+  };
+
+  const fetchUnissuedCertificates = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/certificateunissuedStudentsData", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        const mapped: Student[] = data.data.map((item: any) => ({
+          id: item.student_ID,
+          name: item.student_name,
+          feesStatus: item.status,
+          course: item.selected_course_name || "N/A",
+          duration: item.course_duration || "N/A",
+          totalFees: Number(item.total_fee) || 0,
+          paidFees: Number(item.total_paid_fee) || 0,
+          pendingFees: Number(item.pending_fee) || 0,
+          email: item.email,
+          phone: item.phone,
+          address: item.address,
+          startDate: item.course_start_date ? new Date(item.course_start_date).toISOString().split('T')[0] : "",
+          endDate: item.course_end_date ? new Date(item.course_end_date).toISOString().split('T')[0] : "",
+          feesInstallment: item.fee_installment,
+          fee: item.fee
+        }));
+        setUnissuedCertificatesData(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unissued certificates:", error);
+    }
+  };
+
+  const fetchClearFeeStudents = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/clearfeeStudentsData", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        const mapped: Student[] = data.data.map((item: any) => ({
+          id: item.student_ID,
+          name: item.student_name,
+          feesStatus: item.status,
+          course: item.selected_course_name || "N/A",
+          duration: item.course_duration || "N/A",
+          totalFees: Number(item.total_fee) || 0,
+          paidFees: Number(item.total_paid_fee) || 0,
+          pendingFees: Number(item.pending_fee) || 0,
+          email: item.email,
+          phone: item.phone,
+          address: item.address,
+          startDate: item.course_start_date ? new Date(item.course_start_date).toISOString().split('T')[0] : "",
+          endDate: item.course_end_date ? new Date(item.course_end_date).toISOString().split('T')[0] : "",
+          feesInstallment: item.fee_installment,
+          fee: item.fee
+        }));
+        setClearFeeStudentsData(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch clear fee students:", error);
+    }
+  };
+
+  const fetchEarningsDetails = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/totalEarningsDetails", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEarningsDetailsData(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch earnings details:", error);
+    }
+  };
+
+  const fetchReferredStudents = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/referredStudentsData", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReferredStudentsData(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch referred students:", error);
+    }
+  };
+
+  const fetchReferrers = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/getAllReferrers", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReferrers(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch referrers:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (expandedStat === "total-students") {
+      fetchAllStudents();
+    } else if (expandedStat === "certificate-issued") {
+      fetchIssuedCertificates();
+    } else if (expandedStat === "certificate-unissued") {
+      fetchUnissuedCertificates();
+    } else if (expandedStat === "total-clear-fees") {
+      fetchClearFeeStudents();
+    } else if (expandedStat === "total-earnings") {
+      fetchEarningsDetails();
+    }
+  }, [expandedStat]);
+
+  useEffect(() => {
+    if (activeTab === "referred-students") {
+      fetchReferredStudents();
+    } else if (activeTab === "referred-by") {
+      fetchReferrers();
+    } else if (activeTab === "course-teachers") {
+      fetchTeachers();
+    }
+  }, [activeTab]);
 
   const fetchDashboardData = async () => {
     try {
       const res = await fetch("http://localhost:3001/admin_dashboardGet");
       const data = await res.json();
       if (data.success) {
+        // ... existing mappedStudents logic ...
         const mappedStudents: Student[] = data.tcData.map((item: any) => ({
           id: item.student_ID,
           name: item.student_name,
           feesStatus: item.status,
+          course: item.selected_course_name || "Digital Marketing",
+          duration: item.course_duration || "3 Months",
+          totalFees: Number(item.total_fee) || 0,
+          paidFees: Number(item.total_paid_fee) || 0,
+          pendingFees: Number(item.pending_fee) || 0,
+          email: item.email,
+          phone: item.phone,
+          address: item.address,
+          startDate: item.course_start_date ? new Date(item.course_start_date).toISOString().split('T')[0] : "",
+          endDate: item.course_end_date ? new Date(item.course_end_date).toISOString().split('T')[0] : "",
+          feesInstallment: item.fee_installment,
+          fee: item.fee,
           certificates: item.certificate_photo ? [{
-            id: "backend-cert",
+            id: `cert-${item.student_ID}`,
             name: "Uploaded Certificate",
             url: `http://localhost:3001/${item.certificate_photo}`,
             date: item.created_at ? new Date(item.created_at).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]
           }] : []
         }));
+        
         setStudents(mappedStudents);
         setStats({
-          totalStudents: data.total_tc_uploaded,
-          unissuedCertificates: data.unverifiedTc,
-          certificatesIssued: data.verifiedTc
+          totalStudents: data.stats.total_students,
+          unissuedCertificates: data.stats.total_unissued_certificates,
+          certificatesIssued: data.stats.total_issued_certificates,
+          totalEarnings: data.stats.total_earnings,
+          totalClearFees: data.stats.clear_fee_students
         });
+        setGraphData(data.graphData || []);
+        setTopCourses(data.top_courses || []);
+        setGlobalReferralAmount(data.referrel_amount?.toString() || "0");
         localStorage.setItem("rw_students", JSON.stringify(mappedStudents));
       }
     } catch (error) {
@@ -95,8 +426,27 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSetReferralAmount = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/updateReferralAmount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Number(globalReferralAmount) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        setIsSetAmountModalOpen(false);
+      } else {
+        alert(data.message || "Failed to update amount");
+      }
+    } catch (error) {
+      console.error("Error updating referral amount:", error);
+      alert("An error occurred while updating referral amount");
+    }
+  };
+
   useEffect(() => {
-    // Check Secure Session Auth
     const token = localStorage.getItem("adminAuthToken");
     const authTime = localStorage.getItem("adminAuthTime");
     
@@ -104,23 +454,14 @@ export default function AdminDashboard() {
       navigate("/admin/login");
       return;
     }
-
-    // Session Timeout (1 Hour)
     if (authTime && Date.now() - parseInt(authTime) > 3600000) {
       localStorage.removeItem("adminAuthToken");
       localStorage.removeItem("adminAuthTime");
       navigate("/admin/login");
       return;
     }
-
     fetchDashboardData();
   }, [navigate]);
-
-  const saveStudents = (updated: Student[]) => {
-    setStudents(updated);
-    localStorage.setItem("rw_students", JSON.stringify(updated));
-    fetchDashboardData(); // Refresh stats after save
-  };
 
   const handleLogout = async () => {
     try {
@@ -128,9 +469,7 @@ export default function AdminDashboard() {
       if (token) {
         await fetch("http://localhost:3001/admin_logout", {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+          headers: { "Authorization": `Bearer ${token}` }
         });
       }
     } catch (error) {
@@ -142,147 +481,398 @@ export default function AdminDashboard() {
     }
   };
 
-  // Filtered Students
-  const filteredStudents = students.filter(
-    (s) =>
-      s.id.toLowerCase().includes(search.toLowerCase()) ||
-      s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      const matchesSearch = s.id.toLowerCase().includes(search.toLowerCase()) || s.name.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "All" || s.feesStatus === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [students, search, statusFilter]);
+
+  const handleSaveStudent = (updated: Student) => {
+    if (editingStudent) {
+      setStudents(students.map(s => s.id === editingStudent.id ? updated : s));
+    } else {
+      setStudents([updated, ...students]);
+    }
+    setIsStudentModalOpen(false);
+    setEditingStudent(null);
+  };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] text-neutral-900 flex relative overflow-hidden selection:bg-blue-100 font-sans">
+      
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-neutral-200 hidden md:flex flex-col relative z-20">
-        <div className="p-6 border-b border-neutral-200">
-          <div className="h-10 w-32 relative flex items-center mb-1">
-            <img src="/logo/RIZE LOGO HORI PNG.png" alt="RizeWorld Logo" className="h-full w-full object-contain object-left drop-shadow-md scale-[5.5] origin-left" />
+      <aside className="w-72 bg-white border-r border-neutral-200 hidden md:flex flex-col relative z-20">
+        <div className="p-6 border-b border-neutral-100">
+          <div className="h-60 w-full relative flex items-center mb-2">
+             <img src="/logo/RIZE LOGO HORI PNG.png" alt="RizeWorld" className="w-full h-full object-contain object-left" />
           </div>
-          <div className="mt-2 text-xs font-bold tracking-widest text-neutral-400 uppercase flex items-center gap-2">
-            <Shield size={12} className="text-green-500" /> Secure Admin
+          <div className="mt-2 text-[10px] font-bold tracking-widest text-blue-600 uppercase flex items-center gap-2">
+            <Shield size={12} className="text-blue-500" /> Super Admin Portal
           </div>
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-2">
-          <SidebarItem icon={Users} label="Students" active={activeTab === "students"} onClick={() => setActiveTab("students")} />
-          <SidebarItem icon={FileBox} label="Student Data" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
+          <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === "dashboard"} onClick={() => navigate("/admin/dashboard/dashboard")} />
+          <SidebarItem icon={MessagesSquare} label="Inquiry" active={activeTab === "inquiry"} onClick={() => navigate("/admin/dashboard/inquiry")} />
+          <SidebarItem icon={GraduationCap} label="Course & Teachers" active={activeTab === "course-teachers"} onClick={() => navigate("/admin/dashboard/course-teachers")} />
+          <SidebarItem icon={Users} label="Referred Students" active={activeTab === "referred-students"} onClick={() => navigate("/admin/dashboard/referred-students")} />
+          <SidebarItem icon={UserCircle} label="Referred By" active={activeTab === "referred-by"} onClick={() => navigate("/admin/dashboard/referred-by")} />
         </div>
 
-        <div className="p-6 border-t border-neutral-200">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-semibold hover:bg-red-50 rounded-xl transition-colors">
-            <LogOut size={18} />
-            Logout
+        <div className="p-6 border-t border-neutral-100">
+          <button onClick={() => setIsLogoutModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-semibold hover:bg-red-50 hover:text-red-700 rounded-xl transition-all border border-transparent hover:border-red-100 group">
+            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+            Logout Securely
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
-        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-neutral-200 flex items-center justify-between px-8 sticky top-0 z-30">
-          <h2 className="font-display text-2xl font-bold text-neutral-900">
-            {activeTab === "students" && "Student Management"}
-            {activeTab === "certificates" && "Student Data Manager"}
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/50 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-100/50 rounded-full blur-[120px] pointer-events-none" />
+        
+        <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-neutral-200 flex items-center justify-between px-8 sticky top-0 z-30">
+          <h2 className="font-display text-2xl font-bold text-neutral-900 capitalize tracking-tight">
+            {activeTab.replace("-", " ")} Overview
           </h2>
           
-          {/* Mobile Header elements */}
-          <div className="md:hidden flex items-center gap-4">
-             <button onClick={handleLogout} className="text-red-500"><LogOut size={20} /></button>
+          <div className="flex items-center gap-4">
+             <div className="relative">
+                <button 
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
+                  className="relative p-2 text-neutral-600 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
+                >
+                  <Bell size={20} />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white"></span>
+                </button>
+                
+                {isNotificationsOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-neutral-200 shadow-xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                     <div className="p-4 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
+                        <h3 className="font-bold text-neutral-900">Notifications</h3>
+                        <span className="text-xs font-semibold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">2 New</span>
+                     </div>
+                     <div className="max-h-[300px] overflow-y-auto">
+                        <div 
+                           onClick={() => {
+                              setIsNotificationsOpen(false);
+                              setSelectedNotification({
+                                 type: 'message', title: 'New Course Inquiry', sender: 'Amit Kumar', date: '10 mins ago', color: 'blue', icon: Mail,
+                                 content: "Hi Admin,\n\nI am interested in joining the Web Development course. Could you please send me the full fee structure and upcoming batch details?\n\nRegards,\nAmit Kumar\nPh: 9876543210"
+                              });
+                           }}
+                           className="p-4 border-b border-neutral-50 hover:bg-neutral-50 cursor-pointer transition-colors flex gap-3"
+                        >
+                           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <Mail size={14} />
+                           </div>
+                           <div>
+                              <div className="text-sm font-bold text-neutral-900">New Course Inquiry</div>
+                              <div className="text-xs text-neutral-500 mt-1 line-clamp-2">Amit Kumar is interested in the Web Development course.</div>
+                              <div className="text-[10px] text-neutral-400 font-semibold mt-2">10 mins ago</div>
+                           </div>
+                        </div>
+                        <div 
+                           onClick={() => {
+                              setIsNotificationsOpen(false);
+                              setSelectedNotification({
+                                 type: 'message', title: 'New Course Inquiry', sender: 'Priya Singh', date: '1 hour ago', color: 'blue', icon: Mail,
+                                 content: "Hello,\n\nDo you offer weekend classes for Graphic Designing? I am a working professional and can only attend on weekends. Let me know the schedule.\n\nThanks,\nPriya Singh\nPh: 8765432109"
+                              });
+                           }}
+                           className="p-4 hover:bg-neutral-50 cursor-pointer transition-colors flex gap-3"
+                        >
+                           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <Mail size={14} />
+                           </div>
+                           <div>
+                              <div className="text-sm font-bold text-neutral-900">New Course Inquiry</div>
+                              <div className="text-xs text-neutral-500 mt-1 line-clamp-2">Priya Singh asked about weekend classes for Graphic Designing.</div>
+                              <div className="text-[10px] text-neutral-400 font-semibold mt-2">1 hour ago</div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                )}
+             </div>
+             <button onClick={() => setIsLogoutModalOpen(true)} className="md:hidden text-red-600"><LogOut size={20} /></button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-8">
-            
-            {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatCard title="Total Students" value={stats.totalStudents} icon={Users} color="blue" />
-              <StatCard title="Unissued Certificates" value={stats.unissuedCertificates} icon={AlertCircle} color="orange" />
-              <StatCard title="Certificates Issued" value={stats.certificatesIssued} icon={CheckCircle2} color="green" />
-            </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-thin scrollbar-thumb-neutral-200 scrollbar-track-transparent">
+          
+          {activeTab === "dashboard" && !expandedStat && (
+            <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* Stats Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Total Students" value={stats.totalStudents} icon={Users} color="blue" onClick={() => navigate("/admin/dashboard/dashboard/total-students")} />
+                <StatCard title="Certificate Issued" value={stats.certificatesIssued} icon={Award} color="green" onClick={() => navigate("/admin/dashboard/dashboard/certificate-issued")} />
+                <StatCard title="Certificate Unissued" value={stats.unissuedCertificates} icon={AlertCircle} color="orange" onClick={() => navigate("/admin/dashboard/dashboard/certificate-unissued")} />
+                <StatCard title="Total Earnings" value={`₹${stats.totalEarnings.toLocaleString()}`} icon={IndianRupee} color="purple" onClick={() => navigate("/admin/dashboard/dashboard/total-earnings")} />
+                <StatCard title="Total Clear Fees" value={stats.totalClearFees} icon={CheckCircle2} color="cyan" onClick={() => navigate("/admin/dashboard/dashboard/total-clear-fees")} />
+              </div>
 
-            {/* Students Tab */}
-            {activeTab === "students" && (
-              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-neutral-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="relative max-w-sm w-full">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by ID or Name..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:border-blue-500 focus:ring-1 focus:outline-none transition-all text-sm"
-                    />
+              {/* Middle Section: Graph & Top Courses */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                
+                {/* Graph Area */}
+                <div className="lg:col-span-3 bg-white border border-neutral-200 rounded-3xl p-6 relative overflow-hidden group hover:border-neutral-300 transition-colors shadow-sm">
+                   <div className="flex justify-between items-center mb-6">
+                     <div>
+                       <h3 className="text-lg font-bold text-neutral-900">Revenue & Enrollment Analytics</h3>
+                       <p className="text-xs text-neutral-500">Monthly overview of student growth</p>
+                     </div>
+                     <Activity className="text-blue-500/50" />
+                   </div>
+                   
+                   {/* Custom SVG Line Graph */}
+                   <div className="h-[250px] w-full relative mt-4">
+                      {graphData.length > 0 ? (
+                        <>
+                          {/* Background SVG for Grid Lines */}
+                          <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                             {graphData.map((_, i) => {
+                               const x = (i / (graphData.length - 1 || 1)) * 100;
+                               return (
+                                 <line key={`v-${i}`} x1={x} y1="0" x2={x} y2="100" stroke="rgba(0,0,0,0.06)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                               );
+                             })}
+                          </svg>
+
+                          {/* Foreground SVG for Line Path */}
+                          <svg 
+                             className="absolute inset-0 w-full h-full overflow-visible" 
+                             preserveAspectRatio="none" 
+                             viewBox="0 0 100 100"
+                             style={{ filter: 'drop-shadow(0px 12px 10px rgba(59,130,246,0.3))' }}
+                          >
+                             {(() => {
+                               const maxEarnings = Math.max(...graphData.map(d => d.earnings), 1000);
+                               const pts = graphData.map((d, i) => ({
+                                 x: (i / (graphData.length - 1 || 1)) * 100,
+                                 y: 100 - (d.earnings / maxEarnings) * 80 - 10 // scale to 10-90% range
+                               }));
+                               
+                               if (pts.length < 2) return null;
+
+                               let d = `M ${pts[0].x},${pts[0].y}`;
+                               for (let i = 1; i < pts.length; i++) {
+                                 const p = pts[i-1];
+                                 const c = pts[i];
+                                 // Simple bezier curve
+                                 d += ` C ${p.x + (c.x - p.x) / 2},${p.y} ${c.x - (c.x - p.x) / 2},${c.y} ${c.x},${c.y}`;
+                               }
+                               return (
+                                 <path 
+                                   d={d} 
+                                   fill="none" 
+                                   stroke="#3b82f6" 
+                                   strokeWidth="3.5" 
+                                   vectorEffect="non-scaling-stroke" 
+                                   strokeLinecap="round" 
+                                   strokeLinejoin="round" 
+                                 />
+                               );
+                             })()}
+                          </svg>
+
+                          {/* Data Point Dots */}
+                          {(() => {
+                             const maxEarnings = Math.max(...graphData.map(d => d.earnings), 1000);
+                             return graphData.map((d, i) => {
+                               const x = (i / (graphData.length - 1 || 1)) * 100;
+                               const y = 100 - (d.earnings / maxEarnings) * 80 - 10;
+                               return (
+                                 <div key={`dot-wrapper-${i}`} className="absolute group/dot" style={{ left: `${x}%`, top: `${y}%` }}>
+                                   <div className="w-3.5 h-3.5 bg-blue-500 border-[2.5px] border-white rounded-full shadow-sm hover:scale-150 transition-transform cursor-pointer -translate-x-1/2 -translate-y-1/2" />
+                                   
+                                   {/* Tooltip */}
+                                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white backdrop-blur-md border border-neutral-200 shadow-xl text-neutral-900 text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 group-hover/dot:opacity-100 transition-opacity z-50 whitespace-nowrap pointer-events-none">
+                                      <div className="text-blue-600 mb-0.5">{d.month}</div>
+                                      <div>Earnings: ₹{d.earnings.toLocaleString()}</div>
+                                      <div className="text-neutral-500">New Students: {d.newStudents}</div>
+                                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-neutral-200"></div>
+                                   </div>
+                                 </div>
+                               );
+                             });
+                          })()}
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm italic">
+                          No growth data available yet.
+                        </div>
+                      )}
+                   </div>
+                   <div className="flex justify-between text-[10px] text-neutral-400 mt-4 px-2">
+                     {graphData.length > 0 ? (
+                       graphData.map((d, i) => (
+                         <span key={i}>{d.month.split(' ')[0]}</span>
+                       ))
+                     ) : (
+                       <span>No Data</span>
+                     )}
+                   </div>
+                </div>
+
+                {/* Top Courses */}
+                <div className="bg-white border border-neutral-200 rounded-3xl p-6 shadow-sm flex flex-col">
+                   <div className="mb-6">
+                     <h3 className="text-lg font-bold text-neutral-900">Top Courses</h3>
+                   </div>
+
+                   {/* Stripe Chart */}
+                   <div className="flex gap-[2px] w-full h-8 mb-8">
+                      {topCourses.length > 0 ? (
+                        topCourses.map((course, i) => {
+                          const colors = ["bg-emerald-500", "bg-indigo-600", "bg-cyan-500"];
+                          const total = topCourses.reduce((acc, c) => acc + c.count, 0);
+                          const percentage = (course.count / total) * 100;
+                          const stripes = Math.round((percentage / 100) * 45);
+                          
+                          return [...Array(stripes)].map((_, j) => (
+                            <div 
+                              key={`stripe-${i}-${j}`} 
+                              className={`flex-1 rounded-full ${colors[i % colors.length]}`} 
+                            />
+                          ));
+                        })
+                      ) : (
+                        [...Array(45)].map((_, i) => (
+                           <div key={`stripe-empty-${i}`} className="flex-1 rounded-full bg-neutral-100" />
+                        ))
+                      )}
+                   </div>
+
+                   {/* List */}
+                   <div className="flex flex-col">
+                      {topCourses.length > 0 ? (
+                        topCourses.map((course, i) => {
+                          const colors = ["bg-emerald-500", "bg-indigo-600", "bg-cyan-500"];
+                          return (
+                            <div key={`course-${i}`} className={`flex items-center justify-between py-3 ${i < topCourses.length - 1 ? 'border-b border-neutral-100' : ''}`}>
+                               <div className="flex items-start gap-3">
+                                  <div className={`w-3 h-3 rounded-sm ${colors[i % colors.length]} mt-1 shrink-0`}></div>
+                                  <div>
+                                     <div className="text-sm font-bold text-neutral-900">{course._id || "Unknown"}</div>
+                                     <div className="text-[10px] text-neutral-400 font-semibold mt-0.5">{course.count} Students</div>
+                                  </div>
+                               </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4 text-neutral-400 text-xs italic">
+                          No course data available.
+                        </div>
+                      )}
+                   </div>
+                </div>
+
+              </div>
+
+              {/* Student Management Table */}
+              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm relative">
+                {/* Table Header */}
+                <div className="p-6 border-b border-neutral-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
+                  <div className="flex flex-col md:flex-row gap-4 items-center flex-1">
+                    <div className="relative max-w-sm w-full">
+                      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        placeholder="Search students..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white border border-neutral-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 focus:outline-none transition-all text-sm text-neutral-900 placeholder-neutral-400"
+                      />
+                    </div>
+                    <select 
+                      value={statusFilter} 
+                      onChange={(e: any) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2.5 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none w-full md:w-48 appearance-none cursor-pointer"
+                    >
+                      <option value="All">All Status</option>
+                      <option value="Clear">Clear Fees</option>
+                      <option value="Pending">Pending Fees</option>
+                    </select>
                   </div>
                   <button 
                     onClick={() => {
                       setEditingStudent(null);
                       setIsStudentModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm text-sm"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all shrink-0 text-sm hover:-translate-y-0.5"
                   >
                     <Plus size={18} /> Add Student
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Table Data */}
+                <div className="overflow-x-auto min-h-[300px]">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 text-xs uppercase tracking-wider font-semibold">
-                        <th className="py-4 px-6">Student ID</th>
-                        <th className="py-4 px-6">Name</th>
-                        <th className="py-4 px-6">Fees Status</th>
-                        <th className="py-4 px-6 text-right">Actions</th>
+                        <th className="py-5 px-6 whitespace-nowrap">ID</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Student Name</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Course</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Duration</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Total Fee</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Pending Fee</th>
+                        <th className="py-5 px-6 whitespace-nowrap">Status</th>
+                        <th className="py-5 px-6 text-right whitespace-nowrap">Action</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-neutral-100 text-sm">
                       {filteredStudents.length > 0 ? (
                         filteredStudents.map((s) => (
-                          <tr key={s.id} className="border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors">
-                            <td className="py-4 px-6 font-semibold text-neutral-900">{s.id}</td>
-                            <td className="py-4 px-6 text-neutral-700">{s.name}</td>
+                          <tr key={s.id} className="hover:bg-neutral-50/50 transition-colors group">
+                            <td className="py-4 px-6 font-mono text-neutral-500">{s.id}</td>
+                            <td className="py-4 px-6 font-semibold text-neutral-900 flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-100 to-purple-100 text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm border border-blue-200">
+                                 {s.name.charAt(0).toUpperCase()}
+                               </div>
+                               {s.name}
+                            </td>
+                            <td className="py-4 px-6 text-neutral-600">{s.course || "N/A"}</td>
+                            <td className="py-4 px-6 text-neutral-600">{s.duration || "N/A"}</td>
+                            <td className="py-4 px-6 text-neutral-700">₹{s.totalFees || 0}</td>
+                            <td className="py-4 px-6 text-neutral-700">₹{s.pendingFees || 0}</td>
                             <td className="py-4 px-6">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                                s.feesStatus === "Clear" ? "bg-green-100 text-green-700" :
-                                s.feesStatus === "Pending" ? "bg-red-100 text-red-700" :
-                                "bg-yellow-100 text-yellow-700"
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                s.feesStatus === "Clear" ? "bg-green-100 text-green-700 border-green-200" :
+                                s.feesStatus === "Pending" ? "bg-red-100 text-red-700 border-red-200" :
+                                "bg-orange-100 text-orange-700 border-orange-200"
                               }`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${s.feesStatus === "Clear" ? "bg-green-500" : s.feesStatus === "Pending" ? "bg-red-500" : "bg-orange-500"}`} />
                                 {s.feesStatus}
                               </span>
                             </td>
                             <td className="py-4 px-6">
-                              <div className="flex items-center justify-end gap-3">
-
+                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => setViewingStudent(s)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                  title="View Details"
+                                >
+                                  <Eye size={16} />
+                                </button>
                                 <button 
                                   onClick={() => { setEditingStudent(s); setIsStudentModalOpen(true); }}
+                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
                                   title="Edit Student"
-                                  className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                 >
-                                  <Edit2 size={18} />
+                                  <Edit2 size={16} />
                                 </button>
                                 <button 
-                                  onClick={async () => {
-                                    if (confirm("Are you sure you want to delete this student?")) {
-                                      try {
-                                        const res = await fetch("http://localhost:3001/certificate_delete", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ student_ID: s.id })
-                                        });
-                                        const data = await res.json();
-                                        if (data.success) {
-                                          saveStudents(students.filter(st => st.id !== s.id));
-                                        } else {
-                                          alert(data.message);
-                                        }
-                                      } catch (err) {
-                                        alert("An error occurred while deleting.");
-                                      }
-                                    }
-                                  }}
-                                  title="Delete Student"
-                                  className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  onClick={() => setViewingStudent(s)}
+                                  className="px-3 py-1.5 text-xs font-semibold bg-white hover:bg-neutral-50 text-neutral-700 rounded-lg border border-neutral-200 shadow-sm transition-all ml-2"
                                 >
-                                  <Trash2 size={18} />
+                                  Details
                                 </button>
                               </div>
                             </td>
@@ -290,8 +880,11 @@ export default function AdminDashboard() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="py-12 text-center text-neutral-500">
-                            No students found matching your criteria.
+                          <td colSpan={8} className="py-20 text-center">
+                            <div className="flex flex-col items-center justify-center text-neutral-400">
+                               <Users size={48} className="mb-4 opacity-20" />
+                               <p>No students found matching your criteria.</p>
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -299,104 +892,607 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               </div>
-            )}
 
-            {/* Student Data Tab */}
-            {activeTab === "certificates" && (
-              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-neutral-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="relative max-w-sm w-full">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
-                    <input
-                      type="text"
-                      placeholder="Search submissions by Name or Email..."
-                      value={dataSearch}
-                      onChange={(e) => setDataSearch(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:border-blue-500 focus:ring-1 focus:outline-none transition-all text-sm"
-                    />
-                  </div>
+            </div>
+          )}
+
+          {activeTab === "dashboard" && expandedStat && (
+             <div className="max-w-[1400px] mx-auto animate-in fade-in slide-in-from-right-8 duration-500">
+                <button onClick={() => navigate("/admin/dashboard/dashboard")} className="mb-6 flex items-center gap-2 text-neutral-500 hover:text-neutral-900 font-semibold transition-colors cursor-pointer bg-white px-4 py-2 rounded-xl border border-neutral-200 shadow-sm hover:shadow">
+                   <ArrowLeft size={16} /> Back to Dashboard
+                </button>
+                <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-sm min-h-[600px] flex flex-col">
+                   <h2 className="text-2xl font-bold text-neutral-900 mb-6 capitalize flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                         <LayoutDashboard size={20} />
+                      </div>
+                      {expandedStat.replace(/-/g, ' ')} Details
+                   </h2>
+                   
+                   {expandedStat === "total-students" && (
+                      <div className="mt-4 flex gap-4 mb-6">
+                         <div className="bg-neutral-50 p-4 rounded-2xl flex-1 border border-neutral-100">
+                            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Total Entries</div>
+                            <div className="text-2xl font-bold text-neutral-900">{expandedStats.totalEntries}</div>
+                         </div>
+                         <div className="bg-neutral-50 p-4 rounded-2xl flex-1 border border-neutral-100">
+                            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Growth (Last 30 Days)</div>
+                            <div className="text-2xl font-bold text-emerald-600">+{expandedStats.growth}%</div>
+                         </div>
+                         <div className="bg-neutral-50 p-4 rounded-2xl flex-1 border border-neutral-100">
+                            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Recent Activity</div>
+                            <div className="text-2xl font-bold text-blue-600">{expandedStats.recentActivity}</div>
+                         </div>
+                      </div>
+                   )}
+
+                   <div className="flex-1 border border-neutral-200 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto">
+                      {(() => {
+                         if (expandedStat === "total-students") {
+                            return (
+                               <table className="w-full text-left border-collapse whitespace-nowrap">
+                                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                                     <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">ID</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Duration</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Total Fee</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Pending Fee</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                     {allStudentsData.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                           <td className="px-6 py-4 font-mono text-sm font-semibold text-blue-600">{row.id}</td>
+                                           <td className="px-6 py-4">
+                                              <div className="flex items-center gap-3">
+                                                 <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase">{row.name.charAt(0)}</div>
+                                                 <div className="font-bold text-neutral-900 capitalize">{row.name}</div>
+                                              </div>
+                                           </td>
+                                           <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.course}</td>
+                                           <td className="px-6 py-4 text-sm text-neutral-600">{row.duration}</td>
+                                           <td className="px-6 py-4 text-sm font-bold text-neutral-900">₹{(row.totalFees || 0).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-sm font-bold text-red-600">₹{(row.pendingFees || 0).toLocaleString()}</td>
+                                           <td className="px-6 py-4">
+                                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${row.feesStatus === 'Clear' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                 {row.feesStatus}
+                                              </span>
+                                           </td>
+                                        </tr>
+                                     ))}
+                                  </tbody>
+                               </table>
+                            );
+                         }
+                         
+                         if (expandedStat === "certificate-issued") {
+                            return (
+                               <table className="w-full text-left border-collapse whitespace-nowrap">
+                                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                                     <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student ID</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Issue Date</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Action</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                     {issuedCertificatesData.map((row: Student, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                           <td className="px-6 py-4 font-mono text-sm font-semibold text-emerald-600">{row.id}</td>
+                                           <td className="px-6 py-4 font-bold text-neutral-900 capitalize">{row.name}</td>
+                                           <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.course}</td>
+                                           <td className="px-6 py-4 text-sm text-neutral-600">
+                                              {row.certificates && row.certificates[0]?.date ? new Date(row.certificates[0].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A"}
+                                           </td>
+                                           <td className="px-6 py-4">
+                                              <div className="flex items-center gap-4">
+                                                 <a 
+                                                   href={row.certificates && row.certificates[0]?.url} 
+                                                   target="_blank" 
+                                                   rel="noopener noreferrer"
+                                                   className="text-blue-600 hover:text-blue-700 text-sm font-bold underline cursor-pointer"
+                                                 >
+                                                   View PDF
+                                                 </a>
+                                                 <button 
+                                                   onClick={() => setViewingStudent(row)} 
+                                                   className="text-neutral-600 hover:text-neutral-700 text-sm font-bold underline cursor-pointer"
+                                                 >
+                                                   Details
+                                                 </button>
+                                              </div>
+                                           </td>
+                                        </tr>
+                                     ))}
+                                     {issuedCertificatesData.length === 0 && (
+                                        <tr>
+                                           <td colSpan={5} className="py-20 text-center text-neutral-400 italic">No issued certificates found.</td>
+                                        </tr>
+                                     )}
+                                  </tbody>
+                               </table>
+                            );
+                         }
+
+                         if (expandedStat === "certificate-unissued") {
+                            return (
+                               <table className="w-full text-left border-collapse whitespace-nowrap">
+                                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                                     <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">ID</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Action</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                     {unissuedCertificatesData.map((row: Student, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                           <td className="px-6 py-4 font-mono text-sm font-semibold text-blue-600">{row.id}</td>
+                                           <td className="px-6 py-4 font-bold text-neutral-900 capitalize">{row.name}</td>
+                                           <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.course}</td>
+                                           <td className="px-6 py-4">
+                                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                 row.feesStatus === 'Clear' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
+                                              }`}>
+                                                 {row.feesStatus}
+                                              </span>
+                                           </td>
+                                           <td className="px-6 py-4">
+                                              <button 
+                                                onClick={() => setViewingStudent(row)} 
+                                                className="text-neutral-600 hover:text-neutral-700 text-sm font-bold underline cursor-pointer"
+                                              >
+                                                Details
+                                              </button>
+                                           </td>
+                                        </tr>
+                                     ))}
+                                     {unissuedCertificatesData.length === 0 && (
+                                        <tr>
+                                           <td colSpan={5} className="py-20 text-center text-neutral-400 italic">No unissued certificates found.</td>
+                                        </tr>
+                                     )}
+                                  </tbody>
+                               </table>
+                            );
+                         }
+
+                         if (expandedStat === "total-earnings") {
+                            return (
+                               <table className="w-full text-left border-collapse whitespace-nowrap">
+                                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                                     <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">TXN ID</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Amount</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Date</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Method</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                     {earningsDetailsData.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                           <td className="px-6 py-4 font-mono text-sm font-semibold text-purple-600 truncate max-w-[150px]" title={row.txn_id}>{row.txn_id}</td>
+                                           <td className="px-6 py-4 font-bold text-neutral-900 capitalize">{row.student_name}</td>
+                                           <td className="px-6 py-4 text-sm font-bold text-emerald-600">₹{Number(row.amount).toLocaleString()}</td>
+                                           <td className="px-6 py-4 text-sm text-neutral-600">
+                                              {new Date(row.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                           </td>
+                                           <td className="px-6 py-4 text-sm font-semibold text-neutral-700 uppercase">{row.method}</td>
+                                        </tr>
+                                     ))}
+                                     {earningsDetailsData.length === 0 && (
+                                        <tr>
+                                           <td colSpan={5} className="py-20 text-center text-neutral-400 italic">No earnings records found.</td>
+                                        </tr>
+                                     )}
+                                  </tbody>
+                                  {earningsDetailsData.length > 0 && (
+                                     <tfoot className="bg-neutral-900 text-white">
+                                        <tr>
+                                           <td colSpan={2} className="px-6 py-5 text-sm font-bold uppercase tracking-widest">Total Earning Amount</td>
+                                           <td className="px-6 py-5 text-xl font-black text-emerald-400">
+                                              ₹{earningsDetailsData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0).toLocaleString()}
+                                           </td>
+                                           <td colSpan={2} className="px-6 py-5"></td>
+                                        </tr>
+                                     </tfoot>
+                                  )}
+                               </table>
+                            );
+                         }
+
+                         if (expandedStat === "total-clear-fees") {
+                            return (
+                               <table className="w-full text-left border-collapse whitespace-nowrap">
+                                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                                     <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">ID</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Total Paid</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Action</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                     {clearFeeStudentsData.map((row: Student, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                           <td className="px-6 py-4 font-mono text-sm font-semibold text-cyan-600">{row.id}</td>
+                                           <td className="px-6 py-4 font-bold text-neutral-900 capitalize">{row.name}</td>
+                                           <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.course}</td>
+                                           <td className="px-6 py-4 text-sm font-bold text-neutral-900">₹{Number(row.paidFees).toLocaleString()}</td>
+                                           <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">Clear</span></td>
+                                           <td className="px-6 py-4">
+                                              <button 
+                                                onClick={() => setViewingStudent(row)} 
+                                                className="text-neutral-600 hover:text-neutral-700 text-sm font-bold underline cursor-pointer"
+                                              >
+                                                Details
+                                              </button>
+                                           </td>
+                                        </tr>
+                                     ))}
+                                     {clearFeeStudentsData.length === 0 && (
+                                        <tr>
+                                           <td colSpan={5} className="py-20 text-center text-neutral-400 italic">No students with clear fees found.</td>
+                                        </tr>
+                                     )}
+                                  </tbody>
+                               </table>
+                            );
+                         }
+
+                         return null;
+                      })()}
+                   </div>
                 </div>
+             </div>
+          )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 text-xs uppercase tracking-wider font-semibold">
-                        <th className="py-4 px-6 whitespace-nowrap">S.No</th>
-                        <th className="py-4 px-6 whitespace-nowrap">Name Student</th>
-                        <th className="py-4 px-6 whitespace-nowrap">Phone Number</th>
-                        <th className="py-4 px-6 whitespace-nowrap">Email Student</th>
-                        <th className="py-4 px-6 whitespace-nowrap">Subject</th>
-                        <th className="py-4 px-6">Message</th>
-                        <th className="py-4 px-6 whitespace-nowrap">Date</th>
-                        <th className="py-4 px-6 text-right whitespace-nowrap">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {studentDataList.filter(s => s.name.toLowerCase().includes(dataSearch.toLowerCase()) || s.email.toLowerCase().includes(dataSearch.toLowerCase())).length > 0 ? (
-                        studentDataList.filter(s => s.name.toLowerCase().includes(dataSearch.toLowerCase()) || s.email.toLowerCase().includes(dataSearch.toLowerCase())).map((data, index) => (
-                          <tr key={data.id} className="border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors">
-                            <td className="py-4 px-6 text-sm text-neutral-500 whitespace-nowrap">{index + 1}</td>
-                            <td className="py-4 px-6 font-semibold text-neutral-900 whitespace-nowrap">{data.name}</td>
-                            <td className="py-4 px-6 text-sm text-neutral-700 whitespace-nowrap">{data.phone}</td>
-                            <td className="py-4 px-6 text-sm text-neutral-500 whitespace-nowrap">{data.email}</td>
-                            <td className="py-4 px-6 text-sm text-neutral-700 whitespace-nowrap">{data.subject}</td>
-                            <td className="py-4 px-6 text-sm text-neutral-600 whitespace-normal min-w-[200px]" title={data.message}>{data.message}</td>
-                            <td className="py-4 px-6 text-sm text-neutral-500 whitespace-nowrap">{data.date}</td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center justify-end gap-3">
-                                <button 
-                                  onClick={() => alert(`Full Message from ${data.name}:\n\n${data.message}`)}
-                                  title="View Message"
-                                  className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                >
-                                  <Eye size={18} />
-                                </button>
-                                <button 
-                                  onClick={() => setStudentDataList(studentDataList.filter(d => d.id !== data.id))}
-                                  title="Delete Record"
-                                  className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={8} className="py-12 text-center text-neutral-500">
-                            No student data submissions found.
-                          </td>
+          {/* INQUIRY PAGE */}
+          {activeTab === "inquiry" && (
+             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50">
+                     <h3 className="text-xl font-bold text-neutral-900">Recent Inquiries</h3>
+                   </div>
+                   <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 text-xs uppercase tracking-wider font-semibold">
+                          <th className="py-5 px-6">Name</th>
+                          <th className="py-5 px-6">Phone Number</th>
+                          <th className="py-5 px-6">Interested Course</th>
+                          <th className="py-5 px-6">Date</th>
+                          <th className="py-5 px-6">Status</th>
+                          <th className="py-5 px-6 text-right">Actions</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 text-sm">
+                         {inquiries.map(inq => (
+                            <tr key={inq.id} className="hover:bg-neutral-50/50 transition-colors">
+                               <td className="py-4 px-6 font-semibold text-neutral-900">{inq.name}</td>
+                               <td className="py-4 px-6 text-neutral-600">{inq.phone}</td>
+                               <td className="py-4 px-6 text-neutral-700">{inq.course}</td>
+                               <td className="py-4 px-6 text-neutral-500">{inq.date}</td>
+                               <td className="py-4 px-6">
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                     inq.status === "New" ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                     "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                  }`}>
+                                     {inq.status}
+                                  </span>
+                               </td>
+                               <td className="py-4 px-6 text-right">
+                                  <button className="px-3 py-1.5 text-xs font-semibold bg-white hover:bg-neutral-50 text-neutral-700 rounded-lg border border-neutral-200 shadow-sm transition-all">
+                                    Contact
+                                  </button>
+                               </td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
                 </div>
-              </div>
-            )}
+             </div>
+          )}
 
+          {/* COURSE & TEACHERS PAGE */}
+          {activeTab === "course-teachers" && (
+             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center mb-6">
+                   <h3 className="text-2xl font-bold text-neutral-900">Teacher Directory</h3>
+                   <button 
+                      onClick={() => { setEditingTeacher(null); setIsTeacherModalOpen(true); }}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:-translate-y-0.5 transition-transform cursor-pointer"
+                   >
+                      <Plus size={18} /> Add Teacher
+                   </button>
+                </div>
+                
+                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                         <thead>
+                            <tr className="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-widest border-b border-neutral-100">
+                               <th className="px-6 py-4 font-bold whitespace-nowrap">Teacher Name</th>
+                               <th className="px-6 py-4 font-bold whitespace-nowrap">Course Taught</th>
+                               <th className="px-6 py-4 font-bold whitespace-nowrap">Phone Number</th>
+                               <th className="px-6 py-4 font-bold whitespace-nowrap">Email ID</th>
+                               <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Actions</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-neutral-100">
+                            {teachers.map((teacher) => (
+                               <tr key={teacher.id} className="hover:bg-neutral-50/50 transition-colors group">
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold border border-purple-200 uppercase">
+                                           {teacher.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                           <div className="font-bold text-neutral-900">{teacher.name}</div>
+                                           <div className="text-xs text-neutral-500">{teacher.id}</div>
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold">
+                                        {teacher.subject}
+                                     </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">
+                                     {teacher.phone}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-neutral-600">
+                                     {teacher.email}
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => { setEditingTeacher(teacher); setIsTeacherModalOpen(true); }} className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"><Edit2 size={16} /></button>
+                                        <button onClick={() => handleDeleteTeacher(teacher.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"><Trash2 size={16} /></button>
+                                     </div>
+                                  </td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+             </div>
+          )}
 
-          </div>
+          {/* REFERRED STUDENTS PAGE */}
+          {activeTab === "referred-students" && (
+             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50 flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-neutral-900">Referred Students</h3>
+                   </div>
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse whitespace-nowrap">
+                         <thead className="bg-neutral-50 border-b border-neutral-200">
+                            <tr>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">ID</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Duration</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred By</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referrer Phone</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-neutral-100">
+                            {referredStudentsData.map((row, idx) => (
+                               <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
+                                  <td className="px-6 py-4 font-mono text-sm font-semibold text-blue-600">{row.student_ID}</td>
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase">{row.student_name.charAt(0)}</div>
+                                        <div className="font-bold text-neutral-900 capitalize">{row.student_name}</div>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.selected_course_name}</td>
+                                  <td className="px-6 py-4 text-sm text-neutral-600">{row.course_duration}</td>
+                                  <td className="px-6 py-4">
+                                     <button className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs rounded-lg transition-colors border border-orange-200 flex items-center gap-2 cursor-pointer shadow-sm">
+                                        <UserCircle size={14} /> {row.referrer_name}
+                                     </button>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <button className="px-3 py-1.5 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 font-bold text-xs rounded-lg transition-colors border border-neutral-200 flex items-center gap-2 cursor-pointer shadow-sm">
+                                        <Phone size={14} /> +91 {row.referrer_phone}
+                                     </button>
+                                  </td>
+                               </tr>
+                            ))}
+                            {referredStudentsData.length === 0 && (
+                               <tr>
+                                  <td colSpan={6} className="py-20 text-center text-neutral-400 italic">No referred students found.</td>
+                               </tr>
+                            )}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {/* REFERRED BY PAGE */}
+          {activeTab === "referred-by" && (
+             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50 flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
+                         <UserCircle className="text-orange-600" /> Referrers Overview
+                      </h3>
+                      <button onClick={() => setIsSetAmountModalOpen(true)} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm cursor-pointer flex items-center gap-2">
+                         <IndianRupee size={16} /> Set Referred Amount
+                      </button>
+                   </div>
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse whitespace-nowrap">
+                         <thead className="bg-neutral-50 border-b border-neutral-200">
+                            <tr>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred Name</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred Number</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Students Referred</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Total Amount</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Pending Amount</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
+                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-neutral-100">
+                            {referrers.map((ref: any) => (
+                               <tr key={ref.id} className="hover:bg-neutral-50/50 transition-colors">
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs uppercase">{ref.name.charAt(0)}</div>
+                                        <div className="font-bold text-neutral-900 capitalize">{ref.name}</div>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{ref.phone}</td>
+                                  <td className="px-6 py-4 text-sm font-bold text-blue-600">{ref.studentsReferred}</td>
+                                  <td className="px-6 py-4 text-sm font-bold text-neutral-900">{ref.totalAmount}</td>
+                                  <td className="px-6 py-4 text-sm font-bold text-red-600">{ref.pendingAmount}</td>
+                                  <td className="px-6 py-4">
+                                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${ref.status === 'Clear' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                        {ref.status}
+                                     </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-2">
+                                        <button onClick={() => { setEditingReferrer(ref); setIsReferrerModalOpen(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors cursor-pointer" title="Edit Amount">
+                                           <Edit2 size={16} />
+                                        </button>
+                                        {ref.status === 'Pending' && (
+                                           <button onClick={() => handleClearReferrerAmount(ref)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg transition-colors shadow-sm cursor-pointer">Clear</button>
+                                        )}
+                                     </div>
+                                  </td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+             </div>
+          )}
+
         </div>
       </main>
 
-      {/* Modals */}
+      {/* --- MODALS --- */}
+
+      {/* Edit Referrer Modal */}
+      {isReferrerModalOpen && (
+        <ReferrerModal 
+          referrer={editingReferrer} 
+          onClose={() => setIsReferrerModalOpen(false)} 
+          onSave={handleSaveReferrer} 
+        />
+      )}
+
+      {/* Add / Edit Teacher Modal */}
+      {isTeacherModalOpen && (
+        <TeacherModal 
+          teacher={editingTeacher} 
+          onClose={() => setIsTeacherModalOpen(false)} 
+          onSave={handleSaveTeacher} 
+        />
+      )}
+
+      {/* Details Modal */}
+      {viewingStudent && (
+         <StudentDetailsModal student={viewingStudent} onClose={() => setViewingStudent(null)} />
+      )}
+
+      {/* Add / Edit Student Modal */}
       {isStudentModalOpen && (
         <StudentModal 
           student={editingStudent} 
           onClose={() => setIsStudentModalOpen(false)} 
-          onSave={(updated: Student) => {
-            if (editingStudent) {
-              saveStudents(students.map(s => s.id === editingStudent.id ? updated : s));
-            } else {
-              saveStudents([updated, ...students]);
-            }
-            setIsStudentModalOpen(false);
-            setEditingStudent(null);
-          }} 
+          onSave={handleSaveStudent} 
         />
       )}
 
+      {/* Set Referred Amount Modal */}
+      {isSetAmountModalOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" onClick={() => setIsSetAmountModalOpen(false)}></div>
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full relative z-10 shadow-2xl animate-in zoom-in-95">
+               <h3 className="text-xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                  <IndianRupee className="text-orange-600" /> Set Referred Amount
+               </h3>
+               <div className="mb-6">
+                  <label className="text-xs font-semibold text-neutral-600 block mb-1.5">Amount (₹)</label>
+                  <input type="number" placeholder="E.g. 500" value={globalReferralAmount} onChange={(e) => setGlobalReferralAmount(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-white border border-neutral-200 focus:border-orange-500 focus:outline-none transition-all text-neutral-900 shadow-sm" />
+               </div>
+               <div className="flex gap-3">
+                  <button onClick={() => setIsSetAmountModalOpen(false)} className="flex-1 py-2.5 rounded-xl font-semibold text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer">Cancel</button>
+                  <button onClick={handleSetReferralAmount} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-orange-600 hover:bg-orange-700 transition-colors shadow-sm cursor-pointer">Submit</button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Logout Modal */}
+      {isLogoutModalOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" onClick={() => setIsLogoutModalOpen(false)}></div>
+            <div className="relative bg-white border border-neutral-200 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+               <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <LogOut size={32} />
+               </div>
+               <h3 className="text-2xl font-bold text-neutral-900 mb-2">Confirm Logout</h3>
+               <p className="text-neutral-500 text-sm mb-8">Are you sure you want to securely end your admin session?</p>
+               <div className="flex gap-4">
+                  <button onClick={() => setIsLogoutModalOpen(false)} className="flex-1 py-3 bg-white hover:bg-neutral-50 text-neutral-700 rounded-xl font-semibold transition-colors border border-neutral-200 shadow-sm">Cancel</button>
+                  <button onClick={handleLogout} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-red-600/20">Logout Now</button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Notification Message Modal */}
+      {selectedNotification && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" onClick={() => setSelectedNotification(null)}></div>
+            <div className="relative bg-white border border-neutral-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+               <div className="p-6 border-b border-neutral-100 flex items-start justify-between bg-neutral-50/50">
+                  <div className="flex items-center gap-4">
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md ${selectedNotification.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'}`}>
+                        <selectedNotification.icon size={24} />
+                     </div>
+                     <div>
+                        <h3 className="text-xl font-bold text-neutral-900">{selectedNotification.title}</h3>
+                        <p className="text-sm text-neutral-500 font-semibold">{selectedNotification.sender} &bull; {selectedNotification.date}</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setSelectedNotification(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer">
+                     <X size={20} />
+                  </button>
+               </div>
+               <div className="p-8">
+                  <div className="bg-neutral-50 border border-neutral-100 rounded-2xl p-6 text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed shadow-inner">
+                     {selectedNotification.content}
+                  </div>
+               </div>
+               <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex justify-end gap-3">
+                  <button onClick={() => setSelectedNotification(null)} className="px-6 py-2.5 bg-white border border-neutral-200 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-50 transition-colors shadow-sm cursor-pointer">Close</button>
+                  {selectedNotification.type === 'message' && (
+                     <button className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">Reply</button>
+                  )}
+               </div>
+            </div>
+         </div>
+      )}
 
     </div>
   );
@@ -408,285 +1504,44 @@ function SidebarItem({ icon: Icon, label, active, onClick }: any) {
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
-        active ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all group border ${
+        active ? "bg-blue-50 text-blue-700 border-blue-100 shadow-sm" : "text-neutral-500 border-transparent hover:bg-neutral-50 hover:text-neutral-900"
       }`}
     >
-      <Icon size={20} />
+      <Icon size={20} className={active ? "text-blue-600" : "group-hover:text-neutral-500 transition-colors"} />
       {label}
     </button>
   );
 }
 
-function StatCard({ title, value, icon: Icon, color }: any) {
+function StatCard({ title, value, icon: Icon, color, onClick }: any) {
   const colorMap: any = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    orange: "bg-orange-50 text-orange-500",
+    blue: "from-blue-50 to-white text-blue-700 border-blue-100 shadow-sm icon-blue",
+    green: "from-emerald-50 to-white text-emerald-700 border-emerald-100 shadow-sm icon-emerald",
+    orange: "from-orange-50 to-white text-orange-700 border-orange-100 shadow-sm icon-orange",
+    purple: "from-purple-50 to-white text-purple-700 border-purple-100 shadow-sm icon-purple",
+    cyan: "from-cyan-50 to-white text-cyan-700 border-cyan-100 shadow-sm icon-cyan",
+  };
+  
+  const iconColors: any = {
+     blue: "text-blue-600 bg-blue-100",
+     green: "text-emerald-600 bg-emerald-100",
+     orange: "text-orange-600 bg-orange-100",
+     purple: "text-purple-600 bg-purple-100",
+     cyan: "text-cyan-600 bg-cyan-100",
   };
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-3xl p-6 shadow-sm flex items-center justify-between">
+    <div onClick={onClick} className={`cursor-pointer bg-linear-to-br border rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300 ${colorMap[color].split(" icon-")[0]}`}>
+      <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/50 rounded-full blur-2xl group-hover:bg-white transition-colors"></div>
+      <div className="flex justify-between items-start mb-4">
+         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${iconColors[color]}`}>
+           <Icon size={24} />
+         </div>
+      </div>
       <div>
-        <div className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-1">{title}</div>
-        <div className="font-display text-4xl font-black text-neutral-900">{value}</div>
-      </div>
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colorMap[color]}`}>
-        <Icon size={28} />
-      </div>
-    </div>
-  );
-}
-
-function StudentModal({ student, onClose, onSave }: any) {
-  const [form, setForm] = useState<Student>(
-    student || {
-      id: `RW-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: "",
-      password: "",
-      feesStatus: "Pending",
-      certificates: []
-    }
-  );
-
-  const [fileUrl, setFileUrl] = useState("");
-  const [certName, setCertName] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    if (student?.id) {
-      fetch(`http://localhost:3001/certificate_view/${student.id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.certificate_data) {
-            setForm(prev => ({
-              ...prev,
-              feesStatus: data.certificate_data.status as any,
-              certificates: data.certificate_photo ? [{
-                id: "backend-cert",
-                name: "Uploaded Certificate",
-                url: `http://localhost:3001/${data.certificate_photo}`,
-                date: data.certificate_data.created_at ? new Date(data.certificate_data.created_at).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]
-              }] : []
-            }));
-          }
-        })
-        .catch(console.error);
-    }
-  }, [student?.id]);
-
-  const isPasswordValid = !form.password || checkPasswordValidity(form.password);
-
-  const submit = async (e: any) => {
-    e.preventDefault();
-    if (!isPasswordValid) return;
-
-    try {
-      const isNew = !student;
-
-      if (isNew) {
-        const formData = new FormData();
-        formData.append("student_ID", form.id);
-        formData.append("student_name", form.name);
-        formData.append("status", form.feesStatus);
-        formData.append("student_password", form.password || "Password@123");
-        
-        if (selectedFile) {
-          formData.append("certificate_photo", selectedFile);
-        }
-
-        const res = await fetch("http://localhost:3001/certificate_uplode", {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          onSave(form);
-        } else {
-          alert(data.message || "Failed to create student");
-        }
-      } else {
-        const formData = new FormData();
-        formData.append("student_ID", form.id);
-        formData.append("student_name", form.name);
-        formData.append("status", form.feesStatus);
-        if (form.password) {
-          formData.append("student_password", form.password);
-        }
-        if (selectedFile) {
-          formData.append("certificate_photo", selectedFile);
-        }
-
-        const res = await fetch(`http://localhost:3001/update-certificate/${student.id}`, {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          onSave(form);
-        } else if (data.message === "certificate not found") {
-          // Fallback to create if student is in local state but not backend
-          const createFormData = new FormData();
-          createFormData.append("student_ID", form.id);
-          createFormData.append("student_name", form.name);
-          createFormData.append("status", form.feesStatus);
-          createFormData.append("student_password", form.password || "Password@123");
-          if (selectedFile) {
-            createFormData.append("certificate_photo", selectedFile);
-          }
-          const createRes = await fetch("http://localhost:3001/certificate_uplode", {
-            method: "POST",
-            body: createFormData,
-          });
-          const createData = await createRes.json();
-          if (createData.success) {
-            onSave(form);
-          } else {
-            alert(createData.message || "Failed to sync student to backend");
-          }
-        } else {
-          alert(data.message || "Failed to update student");
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while saving.");
-    }
-  };
-
-  const handleAddCert = () => {
-    if (!fileUrl || !certName) return;
-    const newCert: Certificate = {
-      id: Date.now().toString(),
-      name: certName,
-      url: fileUrl,
-      date: new Date().toISOString().split('T')[0]
-    };
-    setForm({ ...form, certificates: [...form.certificates, newCert] });
-    setFileUrl("");
-    setCertName("");
-    // Note: The file remains in `selectedFile` to be sent on form submit.
-  };
-
-  const removeCert = (id: string) => {
-    setForm({ ...form, certificates: form.certificates.filter((c: any) => c.id !== id) });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-neutral-200 flex justify-between items-center bg-neutral-50 shrink-0">
-          <h3 className="font-display text-xl font-bold text-neutral-900">{student ? "Edit Student & Certificates" : "Add New Student"}</h3>
-          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-900"><span className="text-3xl leading-none">&times;</span></button>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2">
-            
-            {/* Left Side: Student Details */}
-            <form id="student-form" onSubmit={submit} className="p-6 lg:border-r border-neutral-200 space-y-4">
-              <h4 className="text-sm font-bold text-neutral-900 mb-4 flex items-center gap-2"><Users size={16}/> Student Details</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">Student ID *</label>
-                  <input required value={form.id} onChange={e => setForm({...form, id: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">Student Name *</label>
-                  <input required placeholder="E.g. Rahul Sharma" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">Fees Status *</label>
-                  <select value={form.feesStatus} onChange={e => setForm({...form, feesStatus: e.target.value as any})} className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:border-blue-500 focus:outline-none">
-                    <option value="Clear">Clear (Green)</option>
-                    <option value="Pending">Pending (Red)</option>
-                    <option value="Partial">Partial (Yellow)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">Student Password</label>
-                  <input type="text" value={form.password || ""} onChange={e => setForm({...form, password: e.target.value})} placeholder="Leave blank for none" className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:border-blue-500 focus:outline-none" />
-                  {form.password && (
-                    <div className="mt-2">
-                      <PasswordRequirements password={form.password} />
-                    </div>
-                  )}
-                  {!isPasswordValid && form.password && (
-                    <div className="mt-3 flex items-start gap-2 text-[11px] text-red-500 font-semibold bg-red-50 p-2 rounded-lg">
-                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                      Student password must meet all strict security requirements to save.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </form>
-
-            {/* Right Side: Certificates */}
-            <div className="p-6 bg-neutral-50/50">
-              <h4 className="text-sm font-bold text-neutral-900 mb-4 flex items-center gap-2"><FileBox size={16}/> Certificate Management</h4>
-              
-              {/* Upload Form */}
-              <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-sm mb-6 space-y-3">
-                 <div>
-                   <label className="text-xs font-semibold text-neutral-700 block mb-1">Certificate Name</label>
-                   <input value={certName} onChange={e=>setCertName(e.target.value)} placeholder="E.g. Digital Marketing Mastery" className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:border-orange-500 focus:outline-none text-sm" />
-                 </div>
-                 <div>
-                   <label className="text-xs font-semibold text-neutral-700 block mb-1">Upload File (PDF/Image)</label>
-                   <input type="file" accept="image/*,.pdf" onChange={(e) => {
-                     if (e.target.files && e.target.files[0]) {
-                       const file = e.target.files[0];
-                       const objUrl = URL.createObjectURL(file);
-                       setFileUrl(objUrl);
-                       setSelectedFile(file);
-                     }
-                   }} className="w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 cursor-pointer border border-neutral-200 rounded-lg" />
-                 </div>
-                 <button type="button" onClick={handleAddCert} disabled={!fileUrl || !certName} className="w-full px-4 py-2 bg-orange-500 text-white font-bold rounded-lg shadow-orange hover:bg-orange-600 disabled:opacity-50 text-sm flex items-center justify-center gap-2 mt-2">
-                   <Upload size={14} /> Add Certificate
-                 </button>
-              </div>
-
-              {/* List */}
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {form.certificates.length === 0 ? (
-                  <div className="text-center py-6 text-neutral-400 text-xs bg-white rounded-2xl border border-neutral-200 border-dashed">No certificates uploaded yet.</div>
-                ) : (
-                  form.certificates.map((c: any) => (
-                    <div key={c.id} className="bg-white p-3 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center">
-                          <Shield size={16} />
-                        </div>
-                        <div>
-                          <div className="font-bold text-neutral-900 text-xs">{c.name}</div>
-                          <div className="text-[10px] text-neutral-500">Uploaded: {c.date}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <a href={c.url} target="_blank" rel="noreferrer" className="p-1.5 text-neutral-400 hover:text-blue-600 bg-neutral-50 hover:bg-blue-50 rounded-lg transition-colors" title="Preview">
-                          <Eye size={14} />
-                        </a>
-                        <a href={c.url} download={`${c.name}.pdf`} className="p-1.5 text-neutral-400 hover:text-green-600 bg-neutral-50 hover:bg-green-50 rounded-lg transition-colors" title="Download">
-                          <Download size={14} />
-                        </a>
-                        <button type="button" onClick={() => removeCert(c.id)} className="p-1.5 text-neutral-400 hover:text-red-600 bg-neutral-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-        <div className="p-6 border-t border-neutral-100 flex justify-end gap-3 shrink-0 bg-white">
-          <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl font-semibold text-neutral-600 hover:bg-neutral-100">Cancel</button>
-          <button type="submit" form="student-form" disabled={!isPasswordValid} className="px-6 py-2.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-blue disabled:opacity-50 disabled:cursor-not-allowed transition-all">Save All Changes</button>
-        </div>
+        <div className="font-display text-3xl font-black text-neutral-900 mb-1 tracking-tight">{value}</div>
+        <div className="text-xs font-bold uppercase tracking-wider opacity-80">{title}</div>
       </div>
     </div>
   );

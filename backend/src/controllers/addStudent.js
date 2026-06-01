@@ -1,8 +1,8 @@
-const {certificate_uplode,certificate_delete,certificate_view,updateCertificate } = require("../services/certificate")
+const {add_student,certificate_view,updateStudentdetails } = require("../services/addStudent")
 
-exports.certificate_uplode = async (req, res) => {
+exports.add_student = async (req, res) => {
     try {
-      const data = await certificate_uplode(req, res);
+      const data = await add_student(req, res);
       if (data.success) {
         res.status(200).json(data);
       }
@@ -13,19 +13,7 @@ exports.certificate_uplode = async (req, res) => {
       console.log("Error:", error);
     }
   };
-exports.certificate_delete = async (req, res) => {
-    try {
-      const data = await certificate_delete(req, res);
-      if (data.success) {
-        res.status(200).json(data);
-      }
-      else{
-          res.status(403).json(data);
-      }
-    } catch (error) {
-      console.log("Error:", error);
-    }
-  };
+
 exports.certificate_view = async (req, res) => {
     try {
       const data = await certificate_view(req, res);
@@ -39,9 +27,9 @@ exports.certificate_view = async (req, res) => {
       console.log("Error:", error);
     }
   };
-exports.updateCertificate= async (req, res) => {
+exports.updateStudentdetails= async (req, res) => {
     try {
-      const data = await updateCertificate(req, res);
+      const data = await updateStudentdetails(req, res);
       if (data.success) {
         res.status(200).json(data);
       }

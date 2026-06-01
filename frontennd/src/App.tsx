@@ -56,6 +56,8 @@ function MainLayout() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/forget-password" element={<AdminForgetPassword />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard/:tab" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard/:tab/:subview" element={<AdminDashboard />} />
       </Routes>
       {!isAdminRoute && <WhatsAppWidget />}
       {!isAdminRoute && <Footer />}

@@ -50,7 +50,7 @@ export default function About() {
           {[
             {
               icon: Target,
-              title: "Our Mission",
+              title: "Our Mission",     
               desc: "To democratize premium AI & digital marketing education by blending industry expertise, hands-on learning, and a luxury campus experience — making career transformation accessible beyond metros.",
               color: "orange",
             },

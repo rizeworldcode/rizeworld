@@ -1,8 +1,6 @@
 const cookieParser = require('cookie-parser');
 const express = require('express');
 const dotenv = require('dotenv');
-// const http = require('http');
-// const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const { connectDB } = require('./db/dbconnection.js');
@@ -61,8 +59,6 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '/public')));
 
-// Secure proxy endpoint to stream files from backend/public
-// Usage: /public-file?path=uploads/filename.pdf
 app.get('/public-file', (req, res) => {
   try {
     const requested = String(req.query.path || '');
@@ -101,16 +97,11 @@ app.get('/public-file', (req, res) => {
 
 // Route imports and middleware
 app.use("/", require("./src/routes/adminvalidation.js"));
-app.use("/", require("./src/routes/certificate.js"));
+app.use("/", require("./src/routes/addStudent.js"));
+app.use("/", require("./src/routes/addtechers.js"));
 app.use("/", require("./src/routes/admin_dashbord.js"));
-// Setup Socket.IO using the utility
-// const server = http.createServer(app);
-// const socketUtil = require('./socket');
-// const io = socketUtil.init(server);
-
-// io.on('connection', (socket) => {
-//   console.log(`Client connected: ${socket.id}`);
-// });
+app.use("/", require("./src/routes/studentValidation.js"));
+app.use("/", require("./src/routes/studentdataGet.js"));
 
 // Setup view engine
 app.set('views', path.join(__dirname, 'src/views'));
@@ -119,9 +110,6 @@ app.set('view engine', 'ejs');
 // Connect to database and start server
 connectDB();
 
-// Initialize cron jobs
-// const { initNotificationCleanup } = require('./src/utils/cronJobs');
-// initNotificationCleanup();
 
 app.listen(process.env.PORT || 3001, () => {
   console.log(`Server is running on http://localhost:${process.env.PORT || 3001}`);

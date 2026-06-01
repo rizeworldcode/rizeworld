@@ -98,6 +98,7 @@ export default function Courses() {
                 <Sparkles size={12} /> INDIVIDUAL MODULES
               </div>
               <h2 className="font-display text-4xl md:text-5xl font-extrabold text-neutral-900">Master every skill.</h2>
+              <p className="mt-4 text-lg text-neutral-600 font-medium">Duration: 1 Month</p>
             </div>
           </Reveal>
 
@@ -133,6 +134,7 @@ export default function Courses() {
               <h2 className="font-display text-4xl md:text-5xl font-extrabold text-neutral-900 tracking-tight">
                 Stack skills. <span className="text-blue-600">Save more.</span>
               </h2>
+              <p className="mt-4 text-lg text-neutral-600 font-medium">Duration: 2 Months</p>
             </div>
           </Reveal>
 

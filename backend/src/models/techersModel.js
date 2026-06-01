@@ -1,31 +1,32 @@
 const mongoose = require("mongoose");
 const { type } = require("node:os");
 
-const CertificateSchema = new mongoose.Schema({
+const TecherSchema = new mongoose.Schema({
 
-    student_name: {
+    techer_name: {
         type: String,
         required: true,
     },
-    student_ID: {
+    techer_ID: {
         type: String,
         required: true,
     },
-    student_password:{
-        type:String,
-        required: true,
-    },
-
-    status: {
-        type: String,
-        required: true,
-        default: "pending",
-    },
-    certificate_photo: {
+    course_name: {
         type: String,
         default: "",
     },
-
+    phone: {
+        type: String,
+        default: "",
+    },
+    email: {
+        type: String,
+        default: "",
+    },
+    address: {
+        type: String,
+        default: "",
+    },
     created_at: {
         type: Date,
         default: Date.now,
@@ -36,5 +37,5 @@ const CertificateSchema = new mongoose.Schema({
     },
 });
 
-const Certificate  = mongoose.model("Certificate ", CertificateSchema);
-module.exports = Certificate ;
+const Techer  = mongoose.model("Techer ", TecherSchema);
+module.exports = Techer ;

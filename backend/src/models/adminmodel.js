@@ -6,12 +6,16 @@ const adminSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-
-
   auth_key: {
     type: String,
     default: null,
   },
+
+  referrel_amount: {
+    type: Number,
+    default: 0,
+  },
+  
   notificationToken: {
     type: String,
     default: null,
