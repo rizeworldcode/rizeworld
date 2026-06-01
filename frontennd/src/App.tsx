@@ -21,6 +21,11 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminForgetPassword from "./pages/admin/AdminForgetPassword";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
+// Referrer Routes
+import ReferrerLogin from "./pages/referrer/ReferrerLogin";
+import ReferrerForgetPassword from "./pages/referrer/ReferrerForgetPassword";
+import ReferrerDashboard from "./pages/referrer/ReferrerDashboard";
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -33,7 +38,7 @@ import WhatsAppWidget from "./components/WhatsAppWidget";
 
 function MainLayout() {
   const { pathname } = useLocation();
-  const isAdminRoute = pathname.startsWith("/admin");
+  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/referrer");
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
@@ -58,6 +63,12 @@ function MainLayout() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/dashboard/:tab" element={<AdminDashboard />} />
         <Route path="/admin/dashboard/:tab/:subview" element={<AdminDashboard />} />
+        
+        {/* Referrer Routes */}
+        <Route path="/referrer/login" element={<ReferrerLogin />} />
+        <Route path="/referrer/forget-password" element={<ReferrerForgetPassword />} />
+        <Route path="/referrer/dashboard" element={<ReferrerDashboard />} />
+        <Route path="/referrer/dashboard/:expandedStat" element={<ReferrerDashboard />} />
       </Routes>
       {!isAdminRoute && <WhatsAppWidget />}
       {!isAdminRoute && <Footer />}

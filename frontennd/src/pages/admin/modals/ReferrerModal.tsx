@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 export function ReferrerModal({ referrer, onClose, onSave }: { referrer: any, onClose: () => void, onSave: (data: any) => void }) {
-  const [form, setForm] = useState(referrer || { id: "", name: "", phone: "", studentsReferred: 0, totalAmount: "", pendingAmount: "" });
+  const [form] = useState(referrer || { id: "", name: "", phone: "", studentsReferred: 0, totalAmount: "", pendingAmount: "" });
   const [payAmount, setPayAmount] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {

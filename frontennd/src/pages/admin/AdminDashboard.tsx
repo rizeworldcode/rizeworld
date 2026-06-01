@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
-  Users, Search, Plus, Trash2, Edit2, LogOut, Shield, Eye, 
+  Users, Search, Plus,  Edit2, LogOut, Shield, Eye, 
   AlertCircle, LayoutDashboard, GraduationCap, MessagesSquare, X, ArrowLeft,
-  Award, Bell, UserCircle, Mail, IndianRupee, CheckCircle2, Activity, Phone
+  Award, Bell, UserCircle, Mail, IndianRupee, CheckCircle2, Activity
 } from "lucide-react";
 
-import { Student, Inquiry, Teacher } from "./types";
+import { Student,  Teacher } from "./types";
 import { StudentModal } from "./modals/StudentModal";
 import { StudentDetailsModal } from "./modals/StudentDetailsModal";
 import { TeacherModal } from "./modals/TeacherModal";
+import { InquiryTab } from "./tabs/InquiryTab";
+import { CourseTeachersTab } from "./tabs/CourseTeachersTab";
+import { ReferredByTab } from "./tabs/ReferredByTab";
 import { ReferrerModal } from "./modals/ReferrerModal";
 
 export default function AdminDashboard() {
@@ -40,18 +43,47 @@ export default function AdminDashboard() {
   const [unissuedCertificatesData, setUnissuedCertificatesData] = useState<any[]>([]);
   const [clearFeeStudentsData, setClearFeeStudentsData] = useState<any[]>([]);
   const [earningsDetailsData, setEarningsDetailsData] = useState<any[]>([]);
-  const [referredStudentsData, setReferredStudentsData] = useState<any[]>([]);
+  const [, setReferredStudentsData] = useState<any[]>([]);
   const [graphData, setGraphData] = useState<any[]>([]);
   const [topCourses, setTopCourses] = useState<any[]>([]);
 
   const [isSetAmountModalOpen, setIsSetAmountModalOpen] = useState(false);
   const [globalReferralAmount, setGlobalReferralAmount] = useState<number | string>("");
+  const [selectedReferrer, setSelectedReferrer] = useState<any>(null);
+  const [referrerStudents, setReferrerStudents] = useState<any[]>([]);
+  const [referrerStatusFilter, setReferrerStatusFilter] = useState("All");
+
+  const handleReferrerClick = async (referrer: any) => {
+    setSelectedReferrer(referrer);
+    try {
+      const res1 = await fetch("http://localhost:3001/referredStudentsData", { method: "POST" });
+      const data1 = await res1.json();
+
+      const res2 = await fetch("http://localhost:3001/allStudents", { method: "POST" });
+      const data2 = await res2.json();
+
+      if (data1.success && data2.success) {
+        const matchingReferredStudents = data1.data.filter((s: any) => s.referrer_phone === referrer.phone);
+        
+        const enrichedStudents = matchingReferredStudents.map((refStudent: any) => {
+           const fullData = data2.data.find((s: any) => s.student_ID === refStudent.student_ID);
+           return {
+              ...refStudent,
+              student_phone: fullData ? fullData.phone : "N/A",
+              total_fee: fullData ? fullData.total_fee : "0",
+              total_paid_fee: fullData ? fullData.total_paid_fee : "0",
+              pending_fee: fullData ? fullData.pending_fee : "0"
+           };
+        });
+
+        setReferrerStudents(enrichedStudents);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   // Mock Data for new pages
-  const [inquiries] = useState<Inquiry[]>([
-    { id: "INQ-001", name: "Rohan Gupta", phone: "9876543210", course: "AI Tools + DM Basics", date: "2026-05-29", status: "New" },
-    { id: "INQ-002", name: "Anjali Verma", phone: "8765432109", course: "Video Editing", date: "2026-05-28", status: "Contacted" },
-  ]);
 
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -1158,233 +1190,31 @@ export default function AdminDashboard() {
           )}
 
           {/* INQUIRY PAGE */}
-          {activeTab === "inquiry" && (
-             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50">
-                     <h3 className="text-xl font-bold text-neutral-900">Recent Inquiries</h3>
-                   </div>
-                   <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 text-xs uppercase tracking-wider font-semibold">
-                          <th className="py-5 px-6">Name</th>
-                          <th className="py-5 px-6">Phone Number</th>
-                          <th className="py-5 px-6">Interested Course</th>
-                          <th className="py-5 px-6">Date</th>
-                          <th className="py-5 px-6">Status</th>
-                          <th className="py-5 px-6 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-100 text-sm">
-                         {inquiries.map(inq => (
-                            <tr key={inq.id} className="hover:bg-neutral-50/50 transition-colors">
-                               <td className="py-4 px-6 font-semibold text-neutral-900">{inq.name}</td>
-                               <td className="py-4 px-6 text-neutral-600">{inq.phone}</td>
-                               <td className="py-4 px-6 text-neutral-700">{inq.course}</td>
-                               <td className="py-4 px-6 text-neutral-500">{inq.date}</td>
-                               <td className="py-4 px-6">
-                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                     inq.status === "New" ? "bg-blue-100 text-blue-700 border-blue-200" :
-                                     "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                  }`}>
-                                     {inq.status}
-                                  </span>
-                               </td>
-                               <td className="py-4 px-6 text-right">
-                                  <button className="px-3 py-1.5 text-xs font-semibold bg-white hover:bg-neutral-50 text-neutral-700 rounded-lg border border-neutral-200 shadow-sm transition-all">
-                                    Contact
-                                  </button>
-                               </td>
-                            </tr>
-                         ))}
-                      </tbody>
-                   </table>
-                </div>
-             </div>
-          )}
-
+          {activeTab === "inquiry" && <InquiryTab />}
           {/* COURSE & TEACHERS PAGE */}
           {activeTab === "course-teachers" && (
-             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center mb-6">
-                   <h3 className="text-2xl font-bold text-neutral-900">Teacher Directory</h3>
-                   <button 
-                      onClick={() => { setEditingTeacher(null); setIsTeacherModalOpen(true); }}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:-translate-y-0.5 transition-transform cursor-pointer"
-                   >
-                      <Plus size={18} /> Add Teacher
-                   </button>
-                </div>
-                
-                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                   <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                         <thead>
-                            <tr className="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-widest border-b border-neutral-100">
-                               <th className="px-6 py-4 font-bold whitespace-nowrap">Teacher Name</th>
-                               <th className="px-6 py-4 font-bold whitespace-nowrap">Course Taught</th>
-                               <th className="px-6 py-4 font-bold whitespace-nowrap">Phone Number</th>
-                               <th className="px-6 py-4 font-bold whitespace-nowrap">Email ID</th>
-                               <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Actions</th>
-                            </tr>
-                         </thead>
-                         <tbody className="divide-y divide-neutral-100">
-                            {teachers.map((teacher) => (
-                               <tr key={teacher.id} className="hover:bg-neutral-50/50 transition-colors group">
-                                  <td className="px-6 py-4">
-                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold border border-purple-200 uppercase">
-                                           {teacher.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                           <div className="font-bold text-neutral-900">{teacher.name}</div>
-                                           <div className="text-xs text-neutral-500">{teacher.id}</div>
-                                        </div>
-                                     </div>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold">
-                                        {teacher.subject}
-                                     </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">
-                                     {teacher.phone}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-neutral-600">
-                                     {teacher.email}
-                                  </td>
-                                  <td className="px-6 py-4 text-right">
-                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setEditingTeacher(teacher); setIsTeacherModalOpen(true); }} className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDeleteTeacher(teacher.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"><Trash2 size={16} /></button>
-                                     </div>
-                                  </td>
-                               </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
-                </div>
-             </div>
+             <CourseTeachersTab
+                teachers={teachers}
+                setEditingTeacher={setEditingTeacher}
+                setIsTeacherModalOpen={setIsTeacherModalOpen}
+                handleDeleteTeacher={handleDeleteTeacher}
+             />
           )}
-
-          {/* REFERRED STUDENTS PAGE */}
-          {activeTab === "referred-students" && (
-             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-neutral-900">Referred Students</h3>
-                   </div>
-                   <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse whitespace-nowrap">
-                         <thead className="bg-neutral-50 border-b border-neutral-200">
-                            <tr>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">ID</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Student Name</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Course</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Duration</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred By</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referrer Phone</th>
-                            </tr>
-                         </thead>
-                         <tbody className="divide-y divide-neutral-100">
-                            {referredStudentsData.map((row, idx) => (
-                               <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
-                                  <td className="px-6 py-4 font-mono text-sm font-semibold text-blue-600">{row.student_ID}</td>
-                                  <td className="px-6 py-4">
-                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase">{row.student_name.charAt(0)}</div>
-                                        <div className="font-bold text-neutral-900 capitalize">{row.student_name}</div>
-                                     </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{row.selected_course_name}</td>
-                                  <td className="px-6 py-4 text-sm text-neutral-600">{row.course_duration}</td>
-                                  <td className="px-6 py-4">
-                                     <button className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs rounded-lg transition-colors border border-orange-200 flex items-center gap-2 cursor-pointer shadow-sm">
-                                        <UserCircle size={14} /> {row.referrer_name}
-                                     </button>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                     <button className="px-3 py-1.5 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 font-bold text-xs rounded-lg transition-colors border border-neutral-200 flex items-center gap-2 cursor-pointer shadow-sm">
-                                        <Phone size={14} /> +91 {row.referrer_phone}
-                                     </button>
-                                  </td>
-                               </tr>
-                            ))}
-                            {referredStudentsData.length === 0 && (
-                               <tr>
-                                  <td colSpan={6} className="py-20 text-center text-neutral-400 italic">No referred students found.</td>
-                               </tr>
-                            )}
-                         </tbody>
-                      </table>
-                   </div>
-                </div>
-             </div>
-          )}
-
           {/* REFERRED BY PAGE */}
           {activeTab === "referred-by" && (
-             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                   <div className="p-6 border-b border-neutral-200 bg-neutral-50/50 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-                         <UserCircle className="text-orange-600" /> Referrers Overview
-                      </h3>
-                      <button onClick={() => setIsSetAmountModalOpen(true)} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm cursor-pointer flex items-center gap-2">
-                         <IndianRupee size={16} /> Set Referred Amount
-                      </button>
-                   </div>
-                   <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse whitespace-nowrap">
-                         <thead className="bg-neutral-50 border-b border-neutral-200">
-                            <tr>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred Name</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Referred Number</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Students Referred</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Total Amount</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Pending Amount</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
-                               <th className="px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider">Action</th>
-                            </tr>
-                         </thead>
-                         <tbody className="divide-y divide-neutral-100">
-                            {referrers.map((ref: any) => (
-                               <tr key={ref.id} className="hover:bg-neutral-50/50 transition-colors">
-                                  <td className="px-6 py-4">
-                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs uppercase">{ref.name.charAt(0)}</div>
-                                        <div className="font-bold text-neutral-900 capitalize">{ref.name}</div>
-                                     </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm font-semibold text-neutral-700">{ref.phone}</td>
-                                  <td className="px-6 py-4 text-sm font-bold text-blue-600">{ref.studentsReferred}</td>
-                                  <td className="px-6 py-4 text-sm font-bold text-neutral-900">{ref.totalAmount}</td>
-                                  <td className="px-6 py-4 text-sm font-bold text-red-600">{ref.pendingAmount}</td>
-                                  <td className="px-6 py-4">
-                                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${ref.status === 'Clear' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                        {ref.status}
-                                     </span>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => { setEditingReferrer(ref); setIsReferrerModalOpen(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors cursor-pointer" title="Edit Amount">
-                                           <Edit2 size={16} />
-                                        </button>
-                                        {ref.status === 'Pending' && (
-                                           <button onClick={() => handleClearReferrerAmount(ref)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg transition-colors shadow-sm cursor-pointer">Clear</button>
-                                        )}
-                                     </div>
-                                  </td>
-                               </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
-                </div>
-             </div>
+             <ReferredByTab
+                selectedReferrer={selectedReferrer}
+                setSelectedReferrer={setSelectedReferrer}
+                referrerStatusFilter={referrerStatusFilter}
+                setReferrerStatusFilter={setReferrerStatusFilter}
+                referrerStudents={referrerStudents}
+                referrers={referrers}
+                handleReferrerClick={handleReferrerClick}
+                setEditingReferrer={setEditingReferrer}
+                setIsReferrerModalOpen={setIsReferrerModalOpen}
+                handleClearReferrerAmount={handleClearReferrerAmount}
+             />
           )}
-
         </div>
       </main>
 

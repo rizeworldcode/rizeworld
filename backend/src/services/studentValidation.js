@@ -35,7 +35,7 @@ exports.student_login = async (req, res) => {
 
         const token = jwt.sign({ id: validStudent._id }, process.env.SECRET_KEY);
         if (!token) {
-            return res.json({ message: " Token generation failed" });
+            return { success: false, message: " Token generation failed" };
         }
         // Set the token to cookies
         res.cookie("token", token);
@@ -46,7 +46,7 @@ exports.student_login = async (req, res) => {
         );
 
         if (!authKeyInsertion) {
-            return res.json({ message: "Token updation failed" });
+            return { success: false, message: "Token updation failed" };
         }
 
         return {

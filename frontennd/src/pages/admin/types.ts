@@ -17,6 +17,7 @@ export type Student = {
   startDate?: string;
   referredByName?: string;
   referredByPhone?: string;
+  referredAmount?: string | number;
   endDate?: string;
   certificates: Certificate[];
   fee?: {
@@ -40,6 +41,7 @@ export type Inquiry = {
   phone: string;
   course: string;
   date: string;
+  message?: string;
   status: "New" | "Contacted" | "Closed";
 };
 

@@ -27,7 +27,8 @@ export function StudentModal({ student, onClose, onSave }: any) {
       utrNumber: "",
       certificates: [],
       referredByName: "",
-      referredByPhone: ""
+      referredByPhone: "",
+      referredAmount: ""
     }
   );
 
@@ -99,7 +100,8 @@ export function StudentModal({ student, onClose, onSave }: any) {
           course_end_date: form.endDate,
           fee_installment: (form.feesInstallment || "0").toString(),
           referredByName: form.referredByName,
-          referredByPhone: form.referredByPhone
+          referredByPhone: form.referredByPhone,
+          referredAmount: (form.referredAmount || "0").toString()
         };
 
         const res = await fetch("http://localhost:3001/add_student", {
@@ -299,12 +301,16 @@ export function StudentModal({ student, onClose, onSave }: any) {
                         <label className="text-xs font-semibold text-neutral-600 block mb-1.5">Referral Name</label>
                         <input type="text" value={form.referredByName || ""} onChange={e => setForm({...form, referredByName: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-white border border-neutral-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all text-neutral-900 shadow-sm" />
                       </div>
-                      <div>
+                       <div>
                         <label className="text-xs font-semibold text-neutral-600 block mb-1.5">Referral Phone Number</label>
                         <div className="relative flex items-center w-full px-4 py-2.5 rounded-xl bg-white border border-neutral-200 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 transition-all shadow-sm overflow-hidden">
                           <span className="text-neutral-500 font-bold pr-3 border-r border-neutral-200">+91</span>
                           <input type="tel" maxLength={10} value={form.referredByPhone || ""} onChange={e => setForm({...form, referredByPhone: e.target.value.replace(/\D/g, '')})} className="w-full pl-3 bg-transparent outline-none text-neutral-900" />
                         </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-600 block mb-1.5">Referred Amount (₹)</label>
+                        <input type="number" placeholder="E.g. 1000" min={0} value={form.referredAmount || ""} onChange={e => setForm({...form, referredAmount: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-white border border-neutral-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all text-neutral-900 shadow-sm" />
                       </div>
                    </div>
                 </div>

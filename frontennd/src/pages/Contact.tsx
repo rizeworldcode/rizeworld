@@ -27,6 +27,19 @@ _${form.message}_
 📅 *Date:* ${dateStr}
 🌐 *Source:* RizeWorld Website`;
 
+    // Save to local storage for Admin Dashboard Inquiry Overview
+    const existingInquiries = JSON.parse(localStorage.getItem('rw_inquiries') || '[]');
+    const newInquiry = {
+      id: `INQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: form.name,
+      phone: form.phone,
+      course: form.subject || "General Inquiry",
+      date: new Date().toISOString().split('T')[0],
+      status: "New"
+    };
+    existingInquiries.unshift(newInquiry);
+    localStorage.setItem('rw_inquiries', JSON.stringify(existingInquiries));
+
     // Open WhatsApp
     const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(messageTemplate)}`;
     window.open(url, '_blank');

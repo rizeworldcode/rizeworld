@@ -42,6 +42,19 @@ _${form.message || 'No additional requirements specified.'}_
 📅 *Date:* ${dateStr}
 🌐 *Source:* RizeWorld Website (Hire From Us)`;
 
+    // Save to local storage for Admin Dashboard Inquiry Overview
+    const existingInquiries = JSON.parse(localStorage.getItem('rw_inquiries') || '[]');
+    const newInquiry = {
+      id: `INQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: `${form.name} (${form.company})`,
+      phone: form.phone,
+      course: "Hiring Inquiry",
+      date: new Date().toISOString().split('T')[0],
+      status: "New"
+    };
+    existingInquiries.unshift(newInquiry);
+    localStorage.setItem('rw_inquiries', JSON.stringify(existingInquiries));
+
     // Open WhatsApp
     const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(messageTemplate)}`;
     window.open(url, '_blank');
