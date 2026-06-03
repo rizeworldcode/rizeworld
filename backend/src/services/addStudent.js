@@ -24,7 +24,9 @@ exports.add_student = async (req,res) => {
             course_end_date,
             fee_installment,
             referredByName,
-            referredByPhone
+            referredByPhone,
+            referredByEmail,
+            referredAmount
         } = req.body
 
         const existingStudentTc = await certificate_model.findOne({ student_ID: student_ID })
@@ -77,14 +79,18 @@ exports.add_student = async (req,res) => {
             try {
                 let referrer = await referred_model.findOne({ phone: referredByPhone });
                 
-                // Get referral amount from admin config
-                const adminConfig = await admin_model.findOne();
-                const refAmount = adminConfig ? (adminConfig.referrel_amount || 0) : 0;
+                // Use explicit referredAmount if provided, else fallback to admin config
+                let refAmount = parseFloat(referredAmount || 0);
+                if (!referredAmount) {
+                    const adminConfig = await admin_model.findOne();
+                    refAmount = adminConfig ? (adminConfig.referrel_amount || 0) : 0;
+                }
 
                 if (!referrer) {
                     referrer = new referred_model({
                         name: referredByName,
                         phone: referredByPhone,
+                        email: referredByEmail || "",
                         total_student: 1,
                         amount: {
                             total: refAmount.toString(),
@@ -94,13 +100,14 @@ exports.add_student = async (req,res) => {
                     });
                 } else {
                     referrer.total_student += 1;
+                    if (referredByEmail) referrer.email = referredByEmail;
+                    
                     const currentTotal = parseFloat(referrer.amount.total || 0);
                     const currentPaid = parseFloat(referrer.amount.paid || 0);
                     
                     const newTotal = currentTotal + refAmount;
                     referrer.amount.total = newTotal.toString();
                     referrer.amount.pending = (newTotal - currentPaid).toString();
-                    // amount.paid remains the same
                     referrer.updated_at = Date.now();
                 }
                 
@@ -200,7 +207,7 @@ exports.updateStudentdetails = async (req, res) => {
       };
     }
 
-    if (student_password) {
+    if (student_password && student_password.trim() !== "") {
       const hashedPassword = await bcrypt.hash(student_password, 10);
       existingcertificate.student_password = hashedPassword;
     }

@@ -113,7 +113,7 @@ exports.admin_dashboardGet = async (req, res) => {
                 clear_fee_students,
                 unclear_fee_students
             },
-            tcData: tcData.slice(0, 10), // Limit dashboard list to latest 10
+            tcData, 
             top_courses,
             graphData,
             referrel_amount: adminConfig ? adminConfig.referrel_amount : 0

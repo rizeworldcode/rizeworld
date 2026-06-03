@@ -91,6 +91,10 @@ const StudentSchema = new mongoose.Schema({
         ref: "referred",
         default: null,
     },
+    auth_key: {
+        type: String,
+        default: null,
+    },
     created_at: {
         type: Date,
         default: Date.now,

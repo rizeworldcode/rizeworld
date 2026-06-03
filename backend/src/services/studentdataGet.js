@@ -324,8 +324,14 @@ exports.referredStudentsData = async (req, res) => {
 exports.getAllReferrers = async (req, res) => {
     try {
         const referrers = await referred_model.find().sort({ updated_at: -1 });
+        const students = await student_model.find({ referred_by_id: { $ne: null } });
         
         const mappedData = referrers.map(ref => {
+            // Calculate real-time stats from student model
+            const referredStudents = students.filter(s => s.referred_by_id && s.referred_by_id.toString() === ref._id.toString());
+            const totalStudentCount = referredStudents.length;
+            
+            // Total amount is stored in referrer model, but we can verify it or use it as base
             const total = parseFloat(ref.amount.total || 0);
             const paid = parseFloat(ref.amount.paid || 0);
             const pending = total - paid;
@@ -334,7 +340,8 @@ exports.getAllReferrers = async (req, res) => {
                 id: ref._id,
                 name: ref.name,
                 phone: ref.phone,
-                studentsReferred: ref.total_student,
+                email: ref.email || "N/A",
+                studentsReferred: totalStudentCount,
                 totalAmount: `₹${total.toLocaleString()}`,
                 pendingAmount: `₹${pending.toLocaleString()}`,
                 paidAmount: `₹${paid.toLocaleString()}`,
@@ -398,6 +405,43 @@ exports.updateReferrerPayment = async (req, res) => {
         };
     }
 };
+
+exports.getReferrerStudents = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const students = await student_model.find({ referred_by_id: id }).sort({ created_at: -1 });
+
+        const mappedData = students.map(student => {
+            const paid = parseFloat(student.total_paid_fee || 0);
+            const total = parseFloat(student.total_fee || 0);
+            const pending = total - paid;
+
+            return {
+                student_name: student.student_name,
+                student_ID: student.student_ID,
+                selected_course_name: student.selected_course_name,
+                total_fee: student.total_fee,
+                total_paid_fee: student.total_paid_fee,
+                pending_fee: pending.toString(),
+                student_phone: student.phone,
+                created_at: student.created_at
+            };
+        });
+
+        return {
+            success: true,
+            message: "Referrer students fetched successfully",
+            data: mappedData
+        };
+    } catch (error) {
+        console.log("Error:", error);
+        return {
+            success: false,
+            message: "Error in fetching referrer students",
+            data: null
+        }
+    }
+}
 
 exports.particularStudentData = async (req,res) => {
     try {

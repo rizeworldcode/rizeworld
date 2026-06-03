@@ -6,6 +6,10 @@ const referredSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  email: {
+    type: String,
+    default: "",
+  },
   phone: {
     type: Number,
     default: null,
@@ -28,7 +32,10 @@ const referredSchema = new mongoose.Schema({
       default: "",
     },
   },
-
+  auth_key: {
+    type: String,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now,

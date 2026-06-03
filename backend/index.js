@@ -102,6 +102,13 @@ app.use("/", require("./src/routes/addtechers.js"));
 app.use("/", require("./src/routes/admin_dashbord.js"));
 app.use("/", require("./src/routes/studentValidation.js"));
 app.use("/", require("./src/routes/studentdataGet.js"));
+app.use("/", require("./src/routes/refferel/reffereValidation.js"));
+app.use("/", require("./src/routes/refferel/refferelDashboard.js"));
+app.use("/", require("./src/routes/inquiry.js"));
+app.use("/", require("./src/routes/certificate.js"));
+
+
+
 
 // Setup view engine
 app.set('views', path.join(__dirname, 'src/views'));

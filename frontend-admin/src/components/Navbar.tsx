@@ -1,0 +1,227 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { X, Home, Users, Briefcase, MoreHorizontal, MoreVertical, LogOut } from "lucide-react";
+
+
+export default function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAdminPage = location.pathname.startsWith('/admin');
+  const isAdminLoggedIn = !!localStorage.getItem("adminAuthToken");
+
+  const handleAdminLogout = async () => {
+    try {
+      const token = localStorage.getItem("adminAuthToken");
+      if (token) {
+        await fetch("http://localhost:3001/admin_logout", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Admin logout error:", err);
+    } finally {
+      localStorage.removeItem("adminAuthToken");
+      localStorage.removeItem("adminAuthTime");
+      localStorage.removeItem("rw_students");
+      localStorage.removeItem("rw_inquiries");
+      // Clear all cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      navigate("/admin/login");
+    }
+  };
+
+  useEffect(() => {
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location]);
+
+
+
+  return (
+    <>
+      {/* Fixed Left Sidebar (Desktop) */}
+      <aside className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-50 flex-col gap-4">
+        {/* Main Nav Icons */}
+        <div className="bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-4xl p-3 flex flex-col items-center gap-6 py-6 border border-white/40">
+          <Link to="/" title="Home" className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-md hover:scale-110 transition-transform">
+            <Home size={20} />
+          </Link>
+          <Link to="/trainers" title="Trainers" className="text-neutral-400 hover:text-neutral-900 transition-colors">
+            <Users size={22} />
+          </Link>
+          <Link to="/hire-from-us" title="Hire From Us" className="text-neutral-400 hover:text-neutral-900 transition-colors">
+            <Briefcase size={22} />
+          </Link>
+          
+          <div className="relative group mt-2">
+            <button className="text-neutral-400 hover:text-neutral-900 transition-colors flex items-center justify-center">
+              <MoreHorizontal size={24} />
+            </button>
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 w-40 bg-white/95 backdrop-blur-xl rounded-2xl shadow-luxury border border-white/40 p-2 flex flex-col gap-1 z-50">
+              <Link to="/about" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">About Us</Link>
+              <Link to="/blog" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">Blogs</Link>
+              <Link to="/contact" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">Contact Us</Link>
+            </div>
+          </div>
+        </div>
+
+
+      </aside>
+
+
+
+      {/* ============================================================== */}
+      {/* 1. MOBILE NAVBAR (Phones: hidden on md and above) */}
+      {/* ============================================================== */}
+      <div className="flex md:hidden fixed top-6 left-0 right-0 z-50 justify-between items-center px-6 pointer-events-none">
+        <Link 
+          to="/" 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center justify-start h-12 w-32 pointer-events-auto"
+        >
+          {/* Mobile Logo Sizing */}
+          <img src="/logo/RIZE LOGO HORI PNG.png" alt="RizeWorld Logo" className="h-[600%] w-auto max-w-none object-contain object-left ml-[-88px]" />
+        </Link>
+
+        <button 
+          onClick={() => setMobileOpen(!mobileOpen)} 
+          className="pointer-events-auto h-12 w-12 mr-2 flex items-center justify-center bg-white shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full text-neutral-900 cursor-pointer shrink-0"
+        >
+          {mobileOpen ? <X size={24} /> : <MoreVertical size={24} />}
+        </button>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 2. PAD NAVBAR (Tablets: shown on md, hidden on lg) */}
+      {/* ============================================================== */}
+      <div className="hidden md:flex lg:hidden fixed top-6 left-0 right-0 z-50 justify-between items-center px-8 pointer-events-none">
+        <Link 
+          to="/" 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center justify-start h-14 w-40 pointer-events-auto"
+        >
+          {/* Pad Logo Sizing (Edit these values to change Pad logo size) */}
+          <img src="/logo/RIZE LOGO HORI PNG.png" alt="RizeWorld Logo" className="h-[600%] w-auto max-w-none object-contain object-left ml-[-88px]" />
+        </Link>
+
+        <button 
+          onClick={() => setMobileOpen(!mobileOpen)} 
+          className="pointer-events-auto h-14 w-14 mr-2 flex items-center justify-center bg-white shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full text-neutral-900 cursor-pointer shrink-0"
+        >
+          {mobileOpen ? <X size={28} /> : <MoreVertical size={28} />}
+        </button>
+      </div>
+
+      {/* Top Floating Navbar (Desktop) */}
+      <nav className="hidden lg:flex fixed top-10 left-28 right-8 xl:left-32 xl:right-12 z-50 pointer-events-auto transition-all duration-300">
+        <div className="w-full bg-white/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-white/60 rounded-full flex items-center justify-between px-6 xl:px-8 py-3">
+          
+          {/* Left: Logo */}
+          <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center justify-start h-10 w-32 shrink-0 overflow-hidden relative">
+             <img src="/logo/RIZE LOGO HORI PNG.png" alt="RizeWorld Logo" className="absolute top-1/2 left-0 -translate-y-1/2 h-[500%] w-auto max-w-none object-contain object-left ml-[-70px]" />
+          </Link>
+
+          {/* Middle: Links */}
+          <div className="flex items-center gap-6 xl:gap-10 text-[14px] xl:text-[16px] font-display font-semibold text-neutral-900 tracking-wide">
+            <a href="https://maps.google.com/?q=Rizeworld+Institute+of+AI+and+Digital+Marketing,+Alwar" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
+              Location Alwar, RJ
+            </a>
+            <Link to="/courses" className="hover:text-blue-600 transition-colors">Explore Courses</Link>
+            <Link to="/master-course" className="hover:text-blue-600 transition-colors">Program Master Course</Link>
+            <Link to="/certificate" className="hover:text-blue-600 transition-colors">Certificate</Link>
+            <Link to="/referrer/login" className="hover:text-blue-600 transition-colors">Referrer</Link>
+            <Link to="/admin/login" className="hover:text-blue-600 transition-colors">Admin</Link>
+          </div>
+
+          {/* Right: Button */}
+          <div className="shrink-0 pl-2 flex items-center gap-4">
+            {isAdminLoggedIn && isAdminPage ? (
+              <button 
+                onClick={handleAdminLogout}
+                className="px-6 py-2.5 rounded-full bg-red-50 text-red-600 font-display font-semibold text-[15px] tracking-wide hover:bg-red-100 transition-all flex items-center gap-2"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            ) : (
+              <Link to="/contact" className="px-6 py-2.5 rounded-full border border-rose-400/60 text-neutral-900 font-display font-semibold text-[15px] tracking-wide hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center">
+                Enroll Now
+              </Link>
+            )}
+          </div>
+
+        </div>
+      </nav>
+
+      {/* Mobile Menu */}
+      <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-500 ${
+        mobileOpen ? "visible" : "invisible"
+      }`}>
+        <div
+          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-500 ${
+            mobileOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMobileOpen(false)}
+        />
+        <div className={`absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white/98 backdrop-blur-xl border-l border-white/40 shadow-luxury transition-transform duration-500 ${
+          mobileOpen ? "translate-x-0" : "translate-x-full"
+        }`}>
+          <div className="h-full overflow-y-auto p-6 pt-24 space-y-2">
+            <a href="https://maps.google.com/?q=Rizeworld+Institute+of+AI+and+Digital+Marketing,+Alwar" target="_blank" rel="noopener noreferrer" className="block py-3 px-4 rounded-xl font-semibold text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors">
+              Location Alwar, RJ
+            </a>
+            <MobileLink to="/courses" label="Explore Courses" onClick={() => setMobileOpen(false)} />
+            <MobileLink to="/master-course" label="Program Master Course" onClick={() => setMobileOpen(false)} />
+            <MobileLink to="/certificate" label="Certificate" onClick={() => setMobileOpen(false)} />
+            <MobileLink to="/referrer/login" label="Referrer Login" onClick={() => setMobileOpen(false)} />
+            <MobileLink to="/admin/login" label="Admin" onClick={() => setMobileOpen(false)} />
+
+            {isAdminLoggedIn && isAdminPage ? (
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleAdminLogout();
+                }}
+                className="w-full mt-6 py-3 rounded-full bg-red-50 text-red-600 font-semibold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+              >
+                <LogOut size={20} />
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/contact"
+                onClick={() => setMobileOpen(false)}
+                className="block mt-6 text-center py-3 rounded-full border border-rose-300 text-neutral-900 font-semibold hover:bg-rose-50 transition-colors"
+              >
+                Enroll Now
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MobileLink({ to, label, onClick }: any) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="block py-3 px-4 rounded-xl font-semibold text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors"
+    >
+      {label}
+    </Link>
+  );
+}

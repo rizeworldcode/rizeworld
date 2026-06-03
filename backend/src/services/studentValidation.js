@@ -38,7 +38,11 @@ exports.student_login = async (req, res) => {
             return { success: false, message: " Token generation failed" };
         }
         // Set the token to cookies
-        res.cookie("token", token);
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
         const authKeyInsertion = await Tc_model.findOneAndUpdate(
             { _id: validStudent._id },
             { auth_key: token },
@@ -67,3 +71,36 @@ exports.student_login = async (req, res) => {
 
     }
 }
+
+exports.student_logout = async (req, res) => {
+    try {
+
+        if (!req.user) {
+            return {
+                success: false,
+                message: "Unauthorized",
+            };
+        }
+        // Remove auth_key from the student record so the token can't be reused
+        try {
+            // prefer unsetting the field, but setting to null is also acceptable
+            await Tc_model.findByIdAndUpdate(req.user._id, { $unset: { auth_key: "" } });
+        } catch (dbErr) {
+            console.log('Failed to remove auth_key on logout:', dbErr);
+            // don't block logout response if DB update fails
+        }
+
+        // Invalidate the token (token blacklist can be implemented here if needed)
+        res.clearCookie("token");
+        return {
+            success: true,
+            message: "Logged out successfully",
+        };
+    } catch (error) {
+        console.log(error);
+        return {
+            success: false,
+            message: "Internal server error",
+        };
+    }
+};
