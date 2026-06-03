@@ -179,7 +179,7 @@ export default function Home() {
 
             {/* Main Left-Aligned Typography */}
             <div className="flex-1 flex flex-col justify-center w-full pointer-events-none lg:max-w-2xl xl:max-w-3xl">
-              <h1 className="hero-title font-helvetica text-4xl md:text-5xl lg:text-[3.5rem] xl:text-[4.5rem] font-normal text-white leading-[1.1] tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] mb-4 md:mb-6">
+              <h1 className="hero-title font-display text-4xl md:text-5xl lg:text-[3.5rem] xl:text-[4.5rem] font-semibold text-white leading-[1.1] tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] mb-4 md:mb-6">
                 <span>RizeWorld <span className="text-[#ed5923]">Institute</span></span><br />
                 <span className="text-white/90">of AI & Digital Marketing</span>
               </h1>

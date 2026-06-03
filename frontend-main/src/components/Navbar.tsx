@@ -38,9 +38,9 @@ export default function Navbar() {
               <MoreHorizontal size={24} />
             </button>
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 w-40 bg-white/95 backdrop-blur-xl rounded-2xl shadow-luxury border border-white/40 p-2 flex flex-col gap-1 z-50">
-              <Link to="/about" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">About Us</Link>
-              <Link to="/blog" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">Blogs</Link>
-              <Link to="/contact" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors">Contact Us</Link>
+              <Link to="/about" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors uppercase">About Us</Link>
+              <Link to="/blog" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors uppercase">Blogs</Link>
+              <Link to="/contact" className="px-4 py-2 text-sm font-semibold text-neutral-400 hover:text-rize-blue hover:bg-[#0f0f0f] rounded-xl transition-colors uppercase">Contact Us</Link>
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function Navbar() {
           </Link>
 
           {/* Middle: Links */}
-          <div className="flex items-center gap-6 xl:gap-10 text-[14px] xl:text-[16px] font-normal text-neutral-900 tracking-wide" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}>
+          <div className="flex items-center gap-6 xl:gap-10 text-[14px] xl:text-[16px] font-normal text-neutral-900 tracking-wide uppercase" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}>
             <a href="https://maps.google.com/?q=Rizeworld+Institute+of+AI+and+Digital+Marketing,+Alwar" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
               Location Alwar, RJ
             </a>
@@ -113,7 +113,7 @@ export default function Navbar() {
 
           {/* Right: Button */}
           <div className="shrink-0 pl-2">
-            <Link to="/contact" className="px-6 py-2.5 rounded-full border border-rose-400/60 text-neutral-900 font-normal text-[15px] tracking-wide hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}>
+            <Link to="/contact" className="px-6 py-2.5 rounded-full border border-rose-400/60 text-neutral-900 font-normal text-[15px] tracking-wide hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center uppercase" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}>
               Enroll Now
             </Link>
           </div>
@@ -135,7 +135,7 @@ export default function Navbar() {
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}>
           <div className="h-full overflow-y-auto p-6 pt-24 space-y-2" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}>
-            <a href="https://maps.google.com/?q=Rizeworld+Institute+of+AI+and+Digital+Marketing,+Alwar" target="_blank" rel="noopener noreferrer" className="block py-3 px-4 rounded-xl font-normal text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors">
+            <a href="https://maps.google.com/?q=Rizeworld+Institute+of+AI+and+Digital+Marketing,+Alwar" target="_blank" rel="noopener noreferrer" className="block py-3 px-4 rounded-xl font-normal text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors uppercase">
               Location Alwar, RJ
             </a>
             <MobileLink to="/courses" label="Explore Courses" onClick={() => setMobileOpen(false)} />
@@ -145,7 +145,7 @@ export default function Navbar() {
             <Link
               to="/contact"
               onClick={() => setMobileOpen(false)}
-              className="block mt-6 text-center py-3 rounded-full border border-rose-300 text-neutral-900 font-normal hover:bg-rose-50 transition-colors"
+              className="block mt-6 text-center py-3 rounded-full border border-rose-300 text-neutral-900 font-normal hover:bg-rose-50 transition-colors uppercase"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
             >
               Enroll Now
@@ -162,7 +162,7 @@ function MobileLink({ to, label, onClick }: any) {
     <Link
       to={to}
       onClick={onClick}
-      className="block py-3 px-4 rounded-xl font-normal text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors"
+      className="block py-3 px-4 rounded-xl font-normal text-neutral-900 hover:bg-neutral-200 hover:text-rize-blue transition-colors uppercase"
     >
       {label}
     </Link>
